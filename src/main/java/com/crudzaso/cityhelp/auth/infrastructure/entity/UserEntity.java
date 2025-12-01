@@ -13,10 +13,12 @@ import java.util.UUID;
  * User entity implementation with JPA annotations.
  * Infrastructure layer implementation of the User domain model.
  * Maps to the 'users' table in PostgreSQL database.
+ *
+ * Extends AuditableEntity to automatically manage createdAt and updatedAt timestamps.
  */
 @Entity
 @Table(name = "users")
-public class UserEntity {
+public class UserEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -53,12 +55,6 @@ public class UserEntity {
     @Column(name = "role", nullable = false, length = 20)
     private UserRole role;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
@@ -77,8 +73,8 @@ public class UserEntity {
         this.isVerified = user.getIsVerified();
         this.status = user.getStatus();
         this.role = user.getRole();
-        this.createdAt = user.getCreatedAt();
-        this.updatedAt = user.getUpdatedAt();
+        this.setCreatedAt(user.getCreatedAt());
+        this.setUpdatedAt(user.getUpdatedAt());
         this.lastLoginAt = user.getLastLoginAt();
     }
 
@@ -113,29 +109,8 @@ public class UserEntity {
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) { this.role = role; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
-
-    // JPA lifecycle callbacks
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) {
-            createdAt = now;
-        }
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 
     /**
      * Convert to domain model (pure Java).
@@ -154,8 +129,8 @@ public class UserEntity {
         user.setIsVerified(isVerified);
         user.setStatus(status);
         user.setRole(role);
-        user.setCreatedAt(createdAt);
-        user.setUpdatedAt(updatedAt);
+        user.setCreatedAt(getCreatedAt());
+        user.setUpdatedAt(getUpdatedAt());
         user.setLastLoginAt(lastLoginAt);
         return user;
     }

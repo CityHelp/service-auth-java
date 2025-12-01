@@ -1,5 +1,7 @@
 package com.crudzaso.cityhelp.auth.application;
 
+import com.crudzaso.cityhelp.auth.application.exception.UserAlreadyExistsException;
+import com.crudzaso.cityhelp.auth.domain.model.EmailVerificationCode;
 import com.crudzaso.cityhelp.auth.domain.model.User;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import com.crudzaso.cityhelp.auth.domain.enums.UserRole;
@@ -65,37 +67,31 @@ public class RegisterUserUseCase {
         
         // Create email verification code
         String verificationCode = generateVerificationCode();
-        
-        // Create and save email verification code
-        emailVerificationRepository.save(
-            new com.crudzaso.cityhelp.auth.domain.model.EmailVerificationCode(
-                    savedUser, verificationCode, LocalDateTime.now().plusMinutes(15)
-            )
-        );
-        
-        // For OAuth2 users, password should be null
-        // For local users, use the provided password
-        String password = (user.getOAuthProvider() == OAuthProvider.LOCAL) ? savedUser.getPassword() : null;
 
-        return new User(
-                savedUser.getFirstName(),
-                savedUser.getLastName(),
-                savedUser.getEmail(),
-                password,
-                UserStatus.PENDING_VERIFICATION,
-                UserRole.USER,
-                savedUser.getCreatedAt()
-            );
+        // Create and save email verification code
+        EmailVerificationCode emailCode = new EmailVerificationCode();
+        emailCode.setUserId(savedUser.getId());
+        emailCode.setCode(verificationCode);
+        emailCode.setExpiresAt(LocalDateTime.now().plusMinutes(15));
+        emailCode.setCreatedAt(LocalDateTime.now());
+        emailCode.setUsed(false);
+        emailCode.setAttempts(0);
+
+        emailVerificationRepository.save(emailCode);
+
+        // Return the saved user
+        return savedUser;
     }
     
     /**
      * Generate a 6-digit verification code.
-     * 
-     * @return 6-character alphanumeric string
+     * Ensures the code is always exactly 6 digits by padding with zeros if necessary.
+     *
+     * @return 6-digit numeric string
      */
     private String generateVerificationCode() {
-        return String.valueOf((int) (Math.random() * 1000000))
-                .substring(0, 6);
+        int code = (int) (Math.random() * 1000000);
+        return String.format("%06d", code);
     }
     
     /**

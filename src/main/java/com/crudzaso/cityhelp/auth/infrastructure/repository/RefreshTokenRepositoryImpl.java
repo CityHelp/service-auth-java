@@ -3,48 +3,17 @@ package com.crudzaso.cityhelp.auth.infrastructure.repository;
 import com.crudzaso.cityhelp.auth.domain.model.RefreshToken;
 import com.crudzaso.cityhelp.auth.domain.repository.RefreshTokenRepository;
 import com.crudzaso.cityhelp.auth.infrastructure.entity.RefreshTokenEntity;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import com.crudzaso.cityhelp.auth.infrastructure.repository.jpa.RefreshTokenRepositoryJpa;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * JPA interface for RefreshToken operations.
- */
-@Repository
-@Transactional
-public interface RefreshTokenRepositoryJpa extends JpaRepository<RefreshTokenEntity, Long> {
-
-    Optional<RefreshTokenEntity> findByToken(String token);
-
-    List<RefreshTokenEntity> findByUserId(Long userId);
-
-    List<RefreshTokenEntity> findByUserIdAndIsRevokedFalse(Long userId);
-
-    List<RefreshTokenEntity> findByExpiresAtBefore(LocalDateTime dateTime);
-
-    boolean existsByToken(String token);
-
-    @Modifying
-    @Query("UPDATE RefreshTokenEntity rt SET rt.isRevoked = true WHERE rt.userId = :userId")
-    int revokeAllTokensForUser(@Param("userId") Long userId);
-
-    @Modifying
-    @Query("DELETE FROM RefreshTokenEntity rt WHERE rt.expiresAt < :dateTime")
-    int deleteExpiredTokens(@Param("dateTime") LocalDateTime dateTime);
-}
-
-/**
  * Repository implementation for RefreshToken domain entity.
+ * Infrastructure layer - Implementation of domain repository contract using JPA.
  */
 @Repository
 public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
@@ -104,6 +73,13 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
+    public RefreshToken update(RefreshToken refreshToken) {
+        RefreshTokenEntity entity = new RefreshTokenEntity(refreshToken);
+        RefreshTokenEntity updatedEntity = refreshTokenRepositoryJpa.save(entity);
+        return updatedEntity.toDomainModel();
+    }
+
+    @Override
     public void deleteById(Long id) {
         refreshTokenRepositoryJpa.deleteById(id);
     }
@@ -115,7 +91,7 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
-    public void revokeAllTokensForUser(Long userId) {
+    public void revokeAllByUserId(Long userId) {
         refreshTokenRepositoryJpa.revokeAllTokensForUser(userId);
     }
 
@@ -129,8 +105,8 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
-    public void deleteExpiredTokens() {
-        refreshTokenRepositoryJpa.deleteExpiredTokens(LocalDateTime.now());
+    public int deleteExpired() {
+        return refreshTokenRepositoryJpa.deleteExpiredTokens(LocalDateTime.now());
     }
 
     @Override
@@ -141,6 +117,11 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     @Override
     public long countByUserId(Long userId) {
         return refreshTokenRepositoryJpa.findByUserId(userId).size();
+    }
+
+    @Override
+    public long countActiveByUserId(Long userId) {
+        return refreshTokenRepositoryJpa.countActiveByUserId(userId, LocalDateTime.now());
     }
 
     @Override

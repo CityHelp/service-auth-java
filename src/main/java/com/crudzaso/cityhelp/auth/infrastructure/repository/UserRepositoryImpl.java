@@ -6,10 +6,8 @@ import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
 import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import com.crudzaso.cityhelp.auth.infrastructure.entity.UserEntity;
-
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.crudzaso.cityhelp.auth.infrastructure.repository.jpa.UserRepositoryJpa;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,49 +15,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * JPA implementation of UserRepository interface.
- * Infrastructure layer repository that implements domain contract.
- * Uses Spring Data JPA for database operations.
- */
-@Repository
-@Transactional
-public interface UserRepositoryJpa extends JpaRepository<UserEntity, Long> {
-
-    // Custom query methods following Spring Data naming conventions
-    Optional<UserEntity> findByUuid(UUID uuid);
-
-    Optional<UserEntity> findByEmail(String email);
-
-    Optional<UserEntity> findByEmailIgnoreCase(String email);
-
-    boolean existsByEmail(String email);
-
-    boolean existsByEmailIgnoreCase(String email);
-
-    List<UserEntity> findByRole(UserRole role);
-
-    List<UserEntity> findByStatus(UserStatus status);
-
-    List<UserEntity> findByOAuthProvider(OAuthProvider provider);
-
-    List<UserEntity> findByStatusAndIsVerified(UserStatus status, boolean isVerified);
-
-    List<UserEntity> findByStatusAndOAuthProvider(UserStatus status, OAuthProvider provider);
-
-    // Update operations
-    @Transactional
-    int updateLastLoginAtById(Long userId, java.time.LocalDateTime lastLoginAt);
-
-    @Transactional
-    int updateIsVerifiedById(Long userId, boolean isVerified);
-
-    @Transactional
-    int updateStatusById(Long userId, UserStatus status);
-}
-
-/**
  * Repository implementation class that bridges domain and infrastructure.
- * This class implements the UserRepository domain interface.
+ * This class implements the UserRepository domain interface using JPA.
+ * Infrastructure layer - Implementation of domain repository contract.
  */
 @Repository
 public class UserRepositoryImpl implements UserRepository {

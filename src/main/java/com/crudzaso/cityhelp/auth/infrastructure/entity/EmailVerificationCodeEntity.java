@@ -9,10 +9,13 @@ import java.time.LocalDateTime;
  * EmailVerificationCode entity implementation with JPA annotations.
  * Infrastructure layer implementation of EmailVerificationCode domain model.
  * Maps to 'email_verification_codes' table in PostgreSQL database.
+ *
+ * Extends AuditableEntity to automatically manage createdAt timestamp.
+ * Note: Verification codes don't need updatedAt as they are immutable once created.
  */
 @Entity
 @Table(name = "email_verification_codes")
-public class EmailVerificationCodeEntity {
+public class EmailVerificationCodeEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,9 +30,6 @@ public class EmailVerificationCodeEntity {
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
 
     @Column(name = "is_used", nullable = false)
     private boolean isUsed;
@@ -46,7 +46,7 @@ public class EmailVerificationCodeEntity {
         this.userId = emailCode.getUserId();
         this.code = emailCode.getCode();
         this.expiresAt = emailCode.getExpiresAt();
-        this.createdAt = emailCode.getCreatedAt();
+        this.setCreatedAt(emailCode.getCreatedAt());
         this.isUsed = emailCode.isUsed();
         this.attempts = emailCode.getAttempts();
     }
@@ -64,22 +64,11 @@ public class EmailVerificationCodeEntity {
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
     public boolean isUsed() { return isUsed; }
     public void setUsed(boolean used) { isUsed = used; }
 
     public int getAttempts() { return attempts; }
     public void setAttempts(int attempts) { this.attempts = attempts; }
-
-    // JPA lifecycle callbacks
-    @PrePersist
-    protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
-        }
-    }
 
     /**
      * Convert to domain model (pure Java).
@@ -92,7 +81,7 @@ public class EmailVerificationCodeEntity {
         emailCode.setUserId(userId);
         emailCode.setCode(code);
         emailCode.setExpiresAt(expiresAt);
-        emailCode.setCreatedAt(createdAt);
+        emailCode.setCreatedAt(getCreatedAt());
         emailCode.setUsed(isUsed);
         emailCode.setAttempts(attempts);
         return emailCode;

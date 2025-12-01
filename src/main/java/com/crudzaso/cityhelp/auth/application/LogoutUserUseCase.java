@@ -1,8 +1,10 @@
 package com.crudzaso.cityhelp.auth.application;
 
-import com.crudzaso.cityhelp.auth.domain.model.User;
-import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import com.crudzaso.cityhelp.auth.domain.repository.RefreshTokenRepository;
+import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 /**
  * Use case for user logout in CityHelp Auth Service.
@@ -32,25 +34,21 @@ public class LogoutUserUseCase {
     
     /**
      * Logout user and invalidate all their refresh tokens.
-     * 
+     *
      * @param userId User ID to logout
      * @return true if logout was successful, false otherwise
      */
     public boolean execute(Long userId) {
         // Find user by ID
-        Optional<User> user = userRepository.findById(userId);
-        
-        if (user.isEmpty()) {
+        Optional<User> userOpt = userRepository.findById(userId);
+
+        if (userOpt.isEmpty()) {
             return false;
         }
-        
+
         // Revoke all refresh tokens for this user
         refreshTokenRepository.revokeAllByUserId(userId);
-        
-        // Clear authentication context (handled by Spring Security)
-        // Update last login timestamp
-        userRepository.updateLastLoginAt(userId, LocalDateTime.now());
-        
+
         return true;
     }
 }
