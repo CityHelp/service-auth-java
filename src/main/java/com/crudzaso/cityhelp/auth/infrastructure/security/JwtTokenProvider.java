@@ -46,11 +46,11 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
         return Jwts.builder()
-                .setSubject(userPrincipal.getUsername())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
+                .subject(userPrincipal.getUsername())
+                .issuedAt(now)
+                .expiration(expiryDate)
                 .claim("type", "access")
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -164,5 +164,21 @@ public class JwtTokenProvider {
         Date expiration = getExpirationFromJWT(token);
         Date now = new Date();
         return (expiration.getTime() - now.getTime()) / 1000;
+    }
+
+    /**
+     * Get user ID from JWT token.
+     *
+     * @param token JWT token
+     * @return User ID extracted from the token
+     */
+    public Long getUserIdFromJWT(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.get("userId", Long.class);
     }
 }
