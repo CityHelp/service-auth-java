@@ -1,5 +1,6 @@
 package com.crudzaso.cityhelp.auth.application;
 
+import com.crudzaso.cityhelp.auth.domain.model.User;
 import com.crudzaso.cityhelp.auth.domain.repository.RefreshTokenRepository;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import org.springframework.stereotype.Service;

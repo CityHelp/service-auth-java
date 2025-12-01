@@ -43,16 +43,16 @@ public class EmailVerificationRepositoryImpl implements EmailVerificationReposit
     }
 
     @Override
-    public Optional<EmailVerificationCode> findByUserIdAndCode(Long userId, String code) {
-        return jpaRepository.findByUserIdAndCodeAndIsUsedFalse(userId, code)
-                .map(EmailVerificationCodeEntity::toDomainModel);
-    }
-
-    @Override
     public List<EmailVerificationCode> findByUserId(Long userId) {
         return jpaRepository.findByUserId(userId).stream()
                 .map(EmailVerificationCodeEntity::toDomainModel)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<EmailVerificationCode> findById(Long id) {
+        return jpaRepository.findById(id)
+                .map(EmailVerificationCodeEntity::toDomainModel);
     }
 
     @Override
@@ -63,12 +63,18 @@ public class EmailVerificationRepositoryImpl implements EmailVerificationReposit
     }
 
     @Override
-    public void markAsUsed(Long id) {
+    public void markAsUsed(EmailVerificationCode verificationCode) {
+        verificationCode.markAsUsed();
+        update(verificationCode);
+    }
+
+    @Override
+    public void markAsUsedById(Long id) {
         jpaRepository.markAsUsed(id);
     }
 
     @Override
-    public void deleteUsedByUserId(Long userId) {
+    public void deleteAllByUserId(Long userId) {
         jpaRepository.deleteUsedByUserId(userId);
     }
 
@@ -116,22 +122,15 @@ public class EmailVerificationRepositoryImpl implements EmailVerificationReposit
     }
 
     @Override
-    public long count() {
-        return jpaRepository.count();
+    public long countActiveByUserId(Long userId) {
+        return jpaRepository.findByUserId(userId).stream()
+                .filter(entity -> !entity.isUsed())
+                .filter(entity -> entity.getExpiresAt().isAfter(LocalDateTime.now()))
+                .count();
     }
 
     @Override
-    public long countByUserId(Long userId) {
-        return jpaRepository.findByUserId(userId).size();
-    }
-
-    @Override
-    public long countUnused() {
-        return jpaRepository.countUnused();
-    }
-
-    @Override
-    public long countExpired() {
-        return jpaRepository.countExpired(LocalDateTime.now());
+    public boolean hasActiveCodes(Long userId) {
+        return countActiveByUserId(userId) > 0;
     }
 }

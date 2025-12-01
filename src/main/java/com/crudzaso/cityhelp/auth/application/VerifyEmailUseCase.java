@@ -84,8 +84,21 @@ public class VerifyEmailUseCase {
             );
         }
 
+        // CRITICAL: Validate that the code matches the stored code
+        if (!latestCode.get().getCode().equals(code)) {
+            EmailVerificationCode codeObj = latestCode.get();
+            codeObj.incrementAttempts();
+            emailVerificationRepository.update(codeObj);
+
+            if (codeObj.hasExceededAttempts()) {
+                throw new InvalidVerificationCodeException("Maximum verification attempts exceeded");
+            }
+
+            throw new InvalidVerificationCodeException("Invalid verification code");
+        }
+
         // Mark code as used and update user status
-        emailVerificationRepository.markAsUsed(latestCode.get().getId());
+        emailVerificationRepository.markAsUsedById(latestCode.get().getId());
         userRepository.updateStatus(userId, UserStatus.ACTIVE);
 
         return true;

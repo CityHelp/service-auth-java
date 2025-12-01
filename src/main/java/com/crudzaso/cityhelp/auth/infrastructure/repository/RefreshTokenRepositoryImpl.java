@@ -51,7 +51,7 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
-    public List<RefreshToken> findValidTokensByUserId(Long userId) {
+    public List<RefreshToken> findActiveByUserId(Long userId) {
         return refreshTokenRepositoryJpa.findByUserIdAndIsRevokedFalse(userId).stream()
                 .filter(entity -> !entity.toDomainModel().isExpired())
                 .map(RefreshTokenEntity::toDomainModel)
@@ -59,15 +59,16 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
-    public List<RefreshToken> findExpiredTokens() {
+    public List<RefreshToken> findExpired() {
         return refreshTokenRepositoryJpa.findByExpiresAtBefore(LocalDateTime.now()).stream()
                 .map(RefreshTokenEntity::toDomainModel)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<RefreshToken> findAll() {
+    public List<RefreshToken> findRevoked() {
         return refreshTokenRepositoryJpa.findAll().stream()
+                .filter(RefreshTokenEntity::isRevoked)
                 .map(RefreshTokenEntity::toDomainModel)
                 .collect(Collectors.toList());
     }
@@ -85,9 +86,9 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
-    public void deleteByToken(String token) {
-        refreshTokenRepositoryJpa.findByToken(token)
-                .ifPresent(refreshTokenRepositoryJpa::delete);
+    public void deleteAllByUserId(Long userId) {
+        refreshTokenRepositoryJpa.findByUserId(userId)
+                .forEach(refreshTokenRepositoryJpa::delete);
     }
 
     @Override
@@ -96,7 +97,16 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
-    public void revokeToken(String token) {
+    public void revokeById(Long tokenId) {
+        refreshTokenRepositoryJpa.findById(tokenId)
+                .ifPresent(entity -> {
+                    entity.setRevoked(true);
+                    refreshTokenRepositoryJpa.save(entity);
+                });
+    }
+
+    @Override
+    public void revokeByToken(String token) {
         refreshTokenRepositoryJpa.findByToken(token)
                 .ifPresent(entity -> {
                     entity.setRevoked(true);
@@ -110,22 +120,12 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     }
 
     @Override
-    public long count() {
-        return refreshTokenRepositoryJpa.count();
-    }
-
-    @Override
-    public long countByUserId(Long userId) {
-        return refreshTokenRepositoryJpa.findByUserId(userId).size();
-    }
-
-    @Override
     public long countActiveByUserId(Long userId) {
         return refreshTokenRepositoryJpa.countActiveByUserId(userId, LocalDateTime.now());
     }
 
     @Override
-    public boolean existsByToken(String token) {
-        return refreshTokenRepositoryJpa.existsByToken(token);
+    public boolean hasActiveTokens(Long userId) {
+        return countActiveByUserId(userId) > 0;
     }
 }
