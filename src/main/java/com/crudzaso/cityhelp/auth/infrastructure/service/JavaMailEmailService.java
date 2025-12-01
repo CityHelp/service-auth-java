@@ -44,7 +44,7 @@ public class JavaMailEmailService implements EmailService {
 
             String htmlContent = templateEngine.process("email/verification-code", context);
 
-            sendHtmlEmail(toEmail, "Verify your CityHelp account", htmlContent);
+            sendHtmlEmail(toEmail, "Verifica tu cuenta de CityHelp", htmlContent);
 
             log.info("Verification code email sent successfully to: {}", toEmail);
         } catch (Exception e) {
@@ -63,7 +63,7 @@ public class JavaMailEmailService implements EmailService {
 
             String htmlContent = templateEngine.process("email/welcome", context);
 
-            sendHtmlEmail(toEmail, "Welcome to CityHelp!", htmlContent);
+            sendHtmlEmail(toEmail, "¡Bienvenido a CityHelp!", htmlContent);
 
             log.info("Welcome email sent successfully to: {}", toEmail);
         } catch (Exception e) {
@@ -84,7 +84,7 @@ public class JavaMailEmailService implements EmailService {
 
             String htmlContent = templateEngine.process("email/password-reset", context);
 
-            sendHtmlEmail(toEmail, "Reset your CityHelp password", htmlContent);
+            sendHtmlEmail(toEmail, "Restablece tu contraseña de CityHelp", htmlContent);
 
             log.info("Password reset email sent successfully to: {}", toEmail);
         } catch (Exception e) {
