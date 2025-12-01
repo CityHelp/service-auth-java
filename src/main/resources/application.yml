@@ -27,8 +27,8 @@ spring:
   # JPA & Hibernate Configuration
   jpa:
     hibernate:
-      ddl-auto: validate  # Flyway handles migrations
-    show-sql: true  # Change to false in production
+      ddl-auto: validate  # Flyway maneja las migraciones
+    show-sql: true  # Cambiar a false en producción
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -102,7 +102,7 @@ spring:
 
   # Thymeleaf Configuration (Email Templates)
   thymeleaf:
-    cache: false  # Change to true in production
+    cache: false  # Cambiar a true en producción
     prefix: classpath:/templates/
     suffix: .html
     mode: HTML
