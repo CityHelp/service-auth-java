@@ -1,4 +1,4 @@
-package com.crudzaso.cityhelp.auth.application;
+package com.crudzaso.cityhelp.auth.infrastructure.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
