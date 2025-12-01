@@ -1,0 +1,206 @@
+# CityHelp Auth Service Configuration
+# Spring Boot 3.5.8 - Authorization Server
+
+server:
+  port: 8001
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: cityhelp-auth-service
+
+  # PostgreSQL Database Configuration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/cityhelp_auth}
+    username: ${DB_USERNAME:auth_service_user}
+    password: ${DB_PASSWORD:secure_password_change_in_production}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: CityHelpAuthHikariCP
+
+  # JPA & Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Flyway maneja las migraciones
+    show-sql: true  # Cambiar a false en producción
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        default_schema: public
+
+  # Flyway Database Migrations
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    baseline-version: 0
+    schemas: public
+
+  # Spring Security OAuth2 Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+            scope:
+              - email
+              - profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
+            authorization-grant-type: authorization_code
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: email
+
+  # Redis Configuration (Rate Limiting & Caching)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  # Mail Configuration (SMTP)
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:noreply@cityhelp.com}
+    password: ${SMTP_PASSWORD:your-smtp-password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    default-encoding: UTF-8
+
+  # Thymeleaf Configuration (Email Templates)
+  thymeleaf:
+    cache: false  # Cambiar a true en producción
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+
+# Custom CityHelp Properties
+cityhelp:
+  # JWT Configuration
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-use-env-var}
+    access-token-expiration: 86400000   # 24 hours in milliseconds
+    refresh-token-expiration: 604800000 # 7 days in milliseconds
+    issuer: cityhelp-auth-service
+    audience: cityhelp-ecosystem
+
+  # Email Verification Settings
+  email:
+    verification:
+      expiration: 900000  # 15 minutes in milliseconds
+      max-attempts: 3
+      code-length: 6
+    from: noreply@cityhelp.com
+    from-name: CityHelp
+
+  # Rate Limiting Configuration
+  rate-limit:
+    login-attempts: 5
+    window-seconds: 300  # 5 minutes
+    verification-attempts: 3
+    verification-window: 300  # 5 minutes
+
+  # Password Policy
+  password:
+    min-length: 8
+    require-uppercase: true
+    require-lowercase: true
+    require-digit: true
+    require-special-char: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.crudzaso.cityhelp.auth: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: INFO
+    org.springframework.data: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/cityhelp-auth.log
+    max-size: 10MB
+    max-history: 30
+
+# Spring Boot Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+
+# SpringDoc OpenAPI Configuration (Swagger)
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: false
+  info:
+    title: CityHelp Auth Service API
+    description: Authorization Server - Central authentication and JWT issuer for CityHelp ecosystem
+    version: 1.0.0
+    contact:
+      name: CityHelp Team
+      email: dev@cityhelp.com

@@ -7,7 +7,10 @@ import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
 
 import java.util.Optional;
 import java.util.List;
+<<<<<<< HEAD
 import java.util.UUID;
+=======
+>>>>>>> feature/project_initiation
 
 /**
  * Repository interface for User domain entity.
