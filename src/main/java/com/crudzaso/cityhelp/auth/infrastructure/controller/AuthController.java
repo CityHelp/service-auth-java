@@ -2,14 +2,25 @@ package com.crudzaso.cityhelp.auth.infrastructure.controller;
 
 import com.crudzaso.cityhelp.auth.infrastructure.dto.*;
 import com.crudzaso.cityhelp.auth.domain.model.User;
+import com.crudzaso.cityhelp.auth.domain.model.RefreshToken;
+import com.crudzaso.cityhelp.auth.domain.model.EmailVerificationCode;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
+import com.crudzaso.cityhelp.auth.domain.repository.EmailVerificationRepository;
+import com.crudzaso.cityhelp.auth.application.RegisterUserUseCase;
+import com.crudzaso.cityhelp.auth.application.LoginUserUseCase;
+import com.crudzaso.cityhelp.auth.application.VerifyEmailUseCase;
+import com.crudzaso.cityhelp.auth.application.RefreshTokenUseCase;
+import com.crudzaso.cityhelp.auth.application.exception.UserAlreadyExistsException;
+import com.crudzaso.cityhelp.auth.application.exception.InvalidCredentialsException;
+import com.crudzaso.cityhelp.auth.application.exception.InvalidVerificationCodeException;
+import com.crudzaso.cityhelp.auth.infrastructure.security.JwtTokenProvider;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
+import java.time.LocalDateTime;
 
 /**
  * Authentication REST Controller for CityHelp Auth Service.
@@ -22,9 +33,29 @@ import java.util.UUID;
 public class AuthController {
 
     private final UserRepository userRepository;
+    private final EmailVerificationRepository emailVerificationRepository;
+    private final RegisterUserUseCase registerUserUseCase;
+    private final LoginUserUseCase loginUserUseCase;
+    private final VerifyEmailUseCase verifyEmailUseCase;
+    private final RefreshTokenUseCase refreshTokenUseCase;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public AuthController(UserRepository userRepository) {
+    public AuthController(
+            UserRepository userRepository,
+            EmailVerificationRepository emailVerificationRepository,
+            RegisterUserUseCase registerUserUseCase,
+            LoginUserUseCase loginUserUseCase,
+            VerifyEmailUseCase verifyEmailUseCase,
+            RefreshTokenUseCase refreshTokenUseCase,
+            JwtTokenProvider jwtTokenProvider
+    ) {
         this.userRepository = userRepository;
+        this.emailVerificationRepository = emailVerificationRepository;
+        this.registerUserUseCase = registerUserUseCase;
+        this.loginUserUseCase = loginUserUseCase;
+        this.verifyEmailUseCase = verifyEmailUseCase;
+        this.refreshTokenUseCase = refreshTokenUseCase;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     /**
@@ -34,12 +65,6 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            // Check if user already exists
-            if (userRepository.existsByEmailIgnoreCase(request.getEmail())) {
-                return ResponseEntity.badRequest()
-                        .body(AuthResponse.error("El email ya está registrado en el sistema"));
-            }
-
             // Create new user (pending verification)
             User newUser = new User(
                     request.getFirstName(),
@@ -48,10 +73,8 @@ public class AuthController {
                     request.getPassword()
             );
 
-            User savedUser = userRepository.save(newUser);
-
-            // TODO: Implement email verification code generation and sending
-            // This will be implemented in Application Layer
+            // Execute registration use case (generates verification code automatically)
+            User savedUser = registerUserUseCase.execute(newUser);
 
             AuthResponse.UserInfo userInfo = new AuthResponse.UserInfo(
                     savedUser.getUuid().toString(),
@@ -65,12 +88,15 @@ public class AuthController {
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(AuthResponse.success(
-                            "Usuario registrado correctamente. Por favor verifica tu email con el código enviado.",
+                            "Usuario registrado. Por favor verifica tu email con el código enviado.",
                             null,
                             null,
                             userInfo
                     ));
 
+        } catch (UserAlreadyExistsException e) {
+            return ResponseEntity.badRequest()
+                    .body(AuthResponse.error("El email ya está registrado en el sistema"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al registrar usuario: " + e.getMessage()));
@@ -83,31 +109,21 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         try {
-            // Find user by email or username (for now, only email)
-            User user = userRepository.findByEmailIgnoreCase(request.getEmailOrUsername())
-                    .orElse(null);
+            // Execute login use case (validates credentials and checks account status)
+            User user = loginUserUseCase.execute(
+                    request.getEmailOrUsername(),
+                    request.getPassword()
+            );
 
-            if (user == null) {
-                return ResponseEntity.badRequest()
-                        .body(AuthResponse.error("Email o contraseña incorrectos"));
-            }
+            // Generate JWT access token
+            String accessToken = jwtTokenProvider.generateToken(
+                    user.getId(),
+                    user.getEmail(),
+                    user.getRole().name()
+            );
 
-            // TODO: Implement password verification with BCrypt
-            // TODO: Implement JWT token generation
-            // TODO: Implement refresh token generation
-            // These will be implemented in Application Layer with proper security
-
-            if (!user.canLogin()) {
-                if (user.needsEmailVerification()) {
-                    return ResponseEntity.badRequest()
-                            .body(AuthResponse.error("Por favor verifica tu email antes de iniciar sesión"));
-                }
-                return ResponseEntity.badRequest()
-                        .body(AuthResponse.error("Cuenta no activa. Contacta soporte."));
-            }
-
-            // Update last login
-            userRepository.updateLastLoginAt(user.getId());
+            // Generate refresh token (7 days expiration)
+            RefreshToken refreshToken = refreshTokenUseCase.generateNewToken(user.getId(), 7);
 
             AuthResponse.UserInfo userInfo = new AuthResponse.UserInfo(
                     user.getUuid().toString(),
@@ -122,11 +138,14 @@ public class AuthController {
             return ResponseEntity.ok()
                     .body(AuthResponse.success(
                             "Inicio de sesión exitoso",
-                            "mock-access-token", // TODO: Implement JWT
-                            "mock-refresh-token", // TODO: Implement refresh token
+                            accessToken,
+                            refreshToken.getToken(),
                             userInfo
                     ));
 
+        } catch (InvalidCredentialsException e) {
+            return ResponseEntity.badRequest()
+                    .body(AuthResponse.error("Email o contraseña incorrectos"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al iniciar sesión: " + e.getMessage()));
@@ -152,13 +171,15 @@ public class AuthController {
                         .body(AuthResponse.error("Email ya verificado"));
             }
 
-            // TODO: Implement email verification code validation
-            // TODO: Mark user as verified if code is valid
-            // This will be implemented in Application Layer
+            // Execute verification use case (validates code and marks user as verified)
+            verifyEmailUseCase.execute(user.getId(), request.getVerificationCode());
 
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Email verificado correctamente"));
 
+        } catch (InvalidVerificationCodeException e) {
+            return ResponseEntity.badRequest()
+                    .body(AuthResponse.error("Código de verificación inválido o expirado"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al verificar email: " + e.getMessage()));
@@ -201,7 +222,20 @@ public class AuthController {
                         .body(AuthResponse.error("Email ya verificado"));
             }
 
-            // TODO: Implement email verification code regeneration and sending
+            // Generate new verification code
+            String verificationCode = generateVerificationCode();
+
+            // Create and save new email verification code
+            EmailVerificationCode emailCode = new EmailVerificationCode();
+            emailCode.setUserId(user.getId());
+            emailCode.setCode(verificationCode);
+            emailCode.setExpiresAt(LocalDateTime.now().plusMinutes(15));
+            emailCode.setCreatedAt(LocalDateTime.now());
+            emailCode.setUsed(false);
+            emailCode.setAttempts(0);
+
+            emailVerificationRepository.save(emailCode);
+
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Código de verificación reenviado"));
 
@@ -209,6 +243,17 @@ public class AuthController {
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al reenviar código: " + e.getMessage()));
         }
+    }
+
+    /**
+     * Generate a 6-digit verification code.
+     * Ensures the code is always exactly 6 digits by padding with zeros if necessary.
+     *
+     * @return 6-digit numeric string
+     */
+    private String generateVerificationCode() {
+        int code = (int) (Math.random() * 1000000);
+        return String.format("%06d", code);
     }
 
     /**

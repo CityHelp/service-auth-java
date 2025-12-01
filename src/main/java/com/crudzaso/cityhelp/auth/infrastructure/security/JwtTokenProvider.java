@@ -55,6 +55,29 @@ public class JwtTokenProvider {
     }
 
     /**
+     * Generate JWT access token directly with user details (without Authentication object).
+     *
+     * @param userId User ID
+     * @param email User email (used as subject)
+     * @param role User role
+     * @return JWT access token string
+     */
+    public String generateToken(Long userId, String email, String role) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+
+        return Jwts.builder()
+                .subject(email)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .claim("userId", userId)
+                .claim("role", role)
+                .claim("type", "access")
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /**
      * Generate JWT refresh token for authenticated user.
      */
     public String generateRefreshToken(Authentication authentication) {
@@ -63,11 +86,11 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + refreshExpirationInMs);
 
         return Jwts.builder()
-                .setSubject(userPrincipal.getUsername())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
+                .subject(userPrincipal.getUsername())
+                .issuedAt(now)
+                .expiration(expiryDate)
                 .claim("type", "refresh")
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .signWith(getSigningKey())
                 .compact();
     }
 
