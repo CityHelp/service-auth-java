@@ -1,6 +1,7 @@
 package com.crudzaso.cityhelp.auth.application;
 
 import com.crudzaso.cityhelp.auth.application.exception.UserAlreadyExistsException;
+import com.crudzaso.cityhelp.auth.application.service.EmailService;
 import com.crudzaso.cityhelp.auth.domain.model.EmailVerificationCode;
 import com.crudzaso.cityhelp.auth.domain.model.User;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
@@ -8,6 +9,7 @@ import com.crudzaso.cityhelp.auth.domain.enums.UserRole;
 import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
 import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
 import com.crudzaso.cityhelp.auth.domain.repository.EmailVerificationRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,7 +19,7 @@ import java.util.UUID;
 /**
  * Use case for user registration in CityHelp Auth Service.
  * Follows English naming convention for technical code.
- * 
+ *
  * Business Rules:
  * - Email must be unique and valid format
  * - Password must be at least 8 characters
@@ -26,18 +28,22 @@ import java.util.UUID;
  * - Throw exception if user already exists
  * - Return user entity with generated UUID and timestamps
  */
+@Slf4j
 @Service
 public class RegisterUserUseCase {
-    
+
     private final UserRepository userRepository;
     private final EmailVerificationRepository emailVerificationRepository;
-    
+    private final EmailService emailService;
+
     public RegisterUserUseCase(
             UserRepository userRepository,
-            EmailVerificationRepository emailVerificationRepository
+            EmailVerificationRepository emailVerificationRepository,
+            EmailService emailService
     ) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
+        this.emailService = emailService;
     }
     
     /**
@@ -78,6 +84,21 @@ public class RegisterUserUseCase {
         emailCode.setAttempts(0);
 
         emailVerificationRepository.save(emailCode);
+
+        // Send verification code email
+        try {
+            String fullName = savedUser.getFirstName() + " " + savedUser.getLastName();
+            emailService.sendVerificationCode(
+                    savedUser.getEmail(),
+                    fullName,
+                    verificationCode
+            );
+            log.info("Verification code email sent successfully to: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send verification email to: {}. User registered but email not sent.",
+                    savedUser.getEmail(), e);
+            // Continue execution - user is already registered
+        }
 
         // Return the saved user
         return savedUser;

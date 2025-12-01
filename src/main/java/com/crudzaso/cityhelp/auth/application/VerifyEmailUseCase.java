@@ -1,10 +1,12 @@
 package com.crudzaso.cityhelp.auth.application;
 
+import com.crudzaso.cityhelp.auth.application.service.EmailService;
 import com.crudzaso.cityhelp.auth.domain.model.User;
 import com.crudzaso.cityhelp.auth.domain.model.EmailVerificationCode;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import com.crudzaso.cityhelp.auth.domain.repository.EmailVerificationRepository;
 import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -27,18 +29,22 @@ import java.util.Optional;
  * @return true if verification successful, false otherwise
  * @throws InvalidVerificationCodeException if code is invalid or expired
  */
+@Slf4j
 @Service
 public class VerifyEmailUseCase {
 
     private final UserRepository userRepository;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final EmailService emailService;
 
     public VerifyEmailUseCase(
             UserRepository userRepository,
-            EmailVerificationRepository emailVerificationRepository
+            EmailVerificationRepository emailVerificationRepository,
+            EmailService emailService
     ) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
+        this.emailService = emailService;
     }
 
     /**
@@ -100,6 +106,18 @@ public class VerifyEmailUseCase {
         // Mark code as used and update user status
         emailVerificationRepository.markAsUsedById(latestCode.get().getId());
         userRepository.updateStatus(userId, UserStatus.ACTIVE);
+
+        // Send welcome email after successful verification
+        try {
+            User verifiedUser = user.get();
+            String fullName = verifiedUser.getFirstName() + " " + verifiedUser.getLastName();
+            emailService.sendWelcomeEmail(verifiedUser.getEmail(), fullName);
+            log.info("Welcome email sent successfully to: {}", verifiedUser.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send welcome email to: {}. Verification completed but email not sent.",
+                    user.get().getEmail(), e);
+            // Continue execution - verification is successful
+        }
 
         return true;
     }
