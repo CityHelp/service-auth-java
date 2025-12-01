@@ -2,23 +2,6 @@ package com.crudzaso.cityhelp.auth.infrastructure.repository;
 
 import com.crudzaso.cityhelp.auth.domain.model.EmailVerificationCode;
 import com.crudzaso.cityhelp.auth.domain.repository.EmailVerificationRepository;
-<<<<<<< HEAD
-import com.crudzaso.cityhelp.auth.infrastructure.repository.EmailVerificationRepositoryJpa;
-
-import java.util.Optional;
-
-/**
- * Infrastructure implementation of EmailVerificationRepository interface.
- * Implements domain repository contract using JPA.
- *
- * Business Rules:
- * - Convert between JPA entities and domain models
- * - Handle database operations with proper error handling
- * - Maintain clean architecture separation
- *
- * @author CityHelp Team
- * @since 1.0.0
-=======
 import com.crudzaso.cityhelp.auth.infrastructure.entity.EmailVerificationCodeEntity;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -46,170 +29,130 @@ public interface EmailVerificationRepositoryJpa extends JpaRepository<EmailVerif
 
     List<EmailVerificationCodeEntity> findByUserId(Long userId);
 
-    List<EmailVerificationCodeEntity> findByExpiresAtBefore(LocalDateTime dateTime);
-
-    boolean existsByUserIdAndIsUsedFalse(Long userId);
+    @Modifying
+    @Query("DELETE FROM EmailVerificationCodeEntity e WHERE e.userId = :userId AND e.isUsed = true")
+    void deleteUsedByUserId(@Param("userId") Long userId);
 
     @Modifying
-    @Query("UPDATE EmailVerificationCodeEntity evc SET evc.isUsed = true WHERE evc.userId = :userId")
-    int markAllAsUsedByUserId(@Param("userId") Long userId);
+    @Query("DELETE FROM EmailVerificationCodeEntity e WHERE e.expiresAt < :now")
+    void deleteExpired(@Param("now") LocalDateTime now);
 
     @Modifying
-    @Query("UPDATE EmailVerificationCodeEntity evc SET evc.attempts = evc.attempts + 1 WHERE evc.id = :id")
-    int incrementAttempts(@Param("id") Long id);
-
-    @Modifying
-    @Query("DELETE FROM EmailVerificationCodeEntity evc WHERE evc.expiresAt < :dateTime")
-    int deleteExpiredCodes(@Param("dateTime") LocalDateTime dateTime);
+    @Query("UPDATE EmailVerificationCodeEntity e SET e.isUsed = true WHERE e.id = :id")
+    void markAsUsed(@Param("id") Long id);
 }
 
 /**
- * Repository implementation for EmailVerificationCode domain entity.
->>>>>>> feature/project_initiation
+ * Infrastructure implementation of EmailVerificationRepository interface.
+ * Implements domain repository contract using JPA.
+ *
+ * Business Rules:
+ * - Convert between JPA entities and domain models
+ * - Handle database operations with proper error handling
+ * - Maintain clean architecture separation
+ *
+ * @author CityHelp Team
+ * @since 1.0.0
  */
 @Repository
 public class EmailVerificationRepositoryImpl implements EmailVerificationRepository {
 
-    private final EmailVerificationRepositoryJpa emailVerificationRepositoryJpa;
+    private final EmailVerificationRepositoryJpa jpaRepository;
 
-    public EmailVerificationRepositoryImpl(EmailVerificationRepositoryJpa emailVerificationRepositoryJpa) {
-        this.emailVerificationRepositoryJpa = emailVerificationRepositoryJpa;
+    public EmailVerificationRepositoryImpl(EmailVerificationRepositoryJpa jpaRepository) {
+        this.jpaRepository = jpaRepository;
     }
 
     @Override
-    public EmailVerificationCode save(EmailVerificationCode emailCode) {
-        EmailVerificationCodeEntity entity = new EmailVerificationCodeEntity(emailCode);
-        EmailVerificationCodeEntity savedEntity = emailVerificationRepositoryJpa.save(entity);
-        return savedEntity.toDomainModel();
+    public EmailVerificationCode save(EmailVerificationCode emailVerificationCode) {
+        EmailVerificationCodeEntity entity = toEntity(emailVerificationCode);
+        EmailVerificationCodeEntity savedEntity = jpaRepository.save(entity);
+        return toDomain(savedEntity);
     }
 
     @Override
-    public Optional<EmailVerificationCode> findById(Long id) {
-        return emailVerificationRepositoryJpa.findById(id)
-                .map(EmailVerificationCodeEntity::toDomainModel);
+    public Optional<EmailVerificationCode> findLatestByUserId(Long userId) {
+        return jpaRepository.findByUserIdAndIsUsedFalse(userId)
+                .map(this::toDomain);
     }
 
     @Override
-    public Optional<EmailVerificationCode> findByUserId(Long userId) {
-        return emailVerificationRepositoryJpa.findByUserIdAndIsUsedFalse(userId)
-                .map(EmailVerificationCodeEntity::toDomainModel);
-    }
-
-    @Override
-<<<<<<< HEAD
-    public Optional<EmailVerificationCode> findByUserIdAndCodeAndIsUsedFalse(Long userId, String code) {
-=======
     public Optional<EmailVerificationCode> findByUserIdAndCode(Long userId, String code) {
->>>>>>> feature/project_initiation
-        return emailVerificationRepositoryJpa.findByUserIdAndCodeAndIsUsedFalse(userId, code)
-                .map(EmailVerificationCodeEntity::toDomainModel);
+        return jpaRepository.findByUserIdAndCodeAndIsUsedFalse(userId, code)
+                .map(this::toDomain);
     }
 
     @Override
-<<<<<<< HEAD
     public List<EmailVerificationCode> findByUserId(Long userId) {
-        return emailVerificationRepositoryJpa.findByUserId(userId).stream()
-                .map(EmailVerificationCodeEntity::toDomainModel)
-                .toList();
-    }
-
-    @Override
-    public List<EmailVerificationCode> findByExpiresAtBefore(java.time.LocalDateTime dateTime) {
-        return emailVerificationRepositoryJpa.findByExpiresAtBefore(dateTime).stream()
-                .map(EmailVerificationCodeEntity::toDomainModel)
-                .toList();
-    }
-
-    @Override
-    public boolean existsByUserIdAndIsUsedFalse(Long userId) {
-        return emailVerificationRepositoryJpa.existsByUserIdAndIsUsedFalse(userId);
-    }
-
-    @Override
-    public int markAllAsUsedByUserId(Long userId) {
-        return emailVerificationRepositoryJpa.markAllAsUsedByUserId(userId);
-    }
-
-    @Override
-    public int incrementAttempts(Long id) {
-        return emailVerificationRepositoryJpa.incrementAttempts(id);
-    }
-
-    @Override
-    public int deleteExpiredCodes(java.time.LocalDateTime dateTime) {
-        return emailVerificationRepositoryJpa.deleteExpiredCodes(dateTime);
-=======
-    public List<EmailVerificationCode> findAllByUserId(Long userId) {
-        return emailVerificationRepositoryJpa.findByUserId(userId).stream()
-                .map(EmailVerificationCodeEntity::toDomainModel)
+        return jpaRepository.findByUserId(userId).stream()
+                .map(this::toDomain)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<EmailVerificationCode> findExpiredCodes() {
-        return emailVerificationRepositoryJpa.findByExpiresAtBefore(LocalDateTime.now()).stream()
-                .map(EmailVerificationCodeEntity::toDomainModel)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<EmailVerificationCode> findAll() {
-        return emailVerificationRepositoryJpa.findAll().stream()
-                .map(EmailVerificationCodeEntity::toDomainModel)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public void deleteById(Long id) {
-        emailVerificationRepositoryJpa.deleteById(id);
->>>>>>> feature/project_initiation
     }
 
     @Override
     public void markAsUsed(Long id) {
-<<<<<<< HEAD
-        emailVerificationRepositoryJpa.markAsUsed(id);
-=======
-        emailVerificationRepositoryJpa.findById(id).ifPresent(entity -> {
-            entity.setUsed(true);
-            emailVerificationRepositoryJpa.save(entity);
-        });
+        jpaRepository.markAsUsed(id);
     }
 
     @Override
-    public void markAllAsUsedByUserId(Long userId) {
-        emailVerificationRepositoryJpa.markAllAsUsedByUserId(userId);
+    public void deleteUsedByUserId(Long userId) {
+        jpaRepository.deleteUsedByUserId(userId);
     }
 
     @Override
-    public void incrementAttempts(Long id) {
-        emailVerificationRepositoryJpa.incrementAttempts(id);
+    public void deleteExpired() {
+        jpaRepository.deleteExpired(LocalDateTime.now());
     }
 
     @Override
-    public void deleteExpiredCodes() {
-        emailVerificationRepositoryJpa.deleteExpiredCodes(LocalDateTime.now());
-    }
-
-    @Override
-    public void deleteAllByUserId(Long userId) {
-        emailVerificationRepositoryJpa.findByUserId(userId)
-                .forEach(emailVerificationRepositoryJpa::delete);
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
     }
 
     @Override
     public long count() {
-        return emailVerificationRepositoryJpa.count();
+        return jpaRepository.count();
     }
 
     @Override
     public long countByUserId(Long userId) {
-        return emailVerificationRepositoryJpa.findByUserId(userId).size();
+        return jpaRepository.findByUserId(userId).size();
     }
 
     @Override
-    public boolean existsByUserId(Long userId) {
-        return emailVerificationRepositoryJpa.existsByUserIdAndIsUsedFalse(userId);
->>>>>>> feature/project_initiation
+    public long countUnused() {
+        return jpaRepository.findAll().stream()
+                .filter(entity -> !entity.getIsUsed())
+                .count();
+    }
+
+    @Override
+    public long countExpired() {
+        LocalDateTime now = LocalDateTime.now();
+        return jpaRepository.findAll().stream()
+                .filter(entity -> entity.getExpiresAt().isBefore(now))
+                .count();
+    }
+
+    private EmailVerificationCodeEntity toEntity(EmailVerificationCode domain) {
+        return EmailVerificationCodeEntity.builder()
+                .id(domain.getId())
+                .userId(domain.getUserId())
+                .code(domain.getCode())
+                .expiresAt(domain.getExpiresAt())
+                .isUsed(domain.getIsUsed())
+                .createdAt(domain.getCreatedAt())
+                .build();
+    }
+
+    private EmailVerificationCode toDomain(EmailVerificationCodeEntity entity) {
+        return EmailVerificationCode.builder()
+                .id(entity.getId())
+                .userId(entity.getUserId())
+                .code(entity.getCode())
+                .expiresAt(entity.getExpiresAt())
+                .isUsed(entity.getIsUsed())
+                .createdAt(entity.getCreatedAt())
+                .build();
     }
 }

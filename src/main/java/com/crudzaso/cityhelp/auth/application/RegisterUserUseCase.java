@@ -6,16 +6,11 @@ import com.crudzaso.cityhelp.auth.domain.enums.UserRole;
 import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
 import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
 import com.crudzaso.cityhelp.auth.domain.repository.EmailVerificationRepository;
-<<<<<<< HEAD
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
-=======
-
-import java.time.LocalDateTime;
->>>>>>> feature/project_initiation
 
 /**
  * Use case for user registration in CityHelp Auth Service.
@@ -122,10 +117,6 @@ public class RegisterUserUseCase {
     public boolean needsEmailVerification(Long userId) {
         return userRepository.findById(userId)
                 .map(user -> user.isPendingVerification() && emailVerificationRepository.findLatestByUserId(userId).isEmpty())
-<<<<<<< HEAD
                 .orElse(false);
-=======
-                .orElse(false));
->>>>>>> feature/project_initiation
     }
 }
