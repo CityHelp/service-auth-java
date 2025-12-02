@@ -124,6 +124,12 @@ app:
       # Key ID for JWKS (should match JWT header 'kid')
       key-id: ${JWT_KEY_ID:cityhelp-key-1}
 
+  # OAuth2 Configuration
+  oauth2:
+    # Redirect URI after successful OAuth2 authentication
+    # This is where users will be redirected with their tokens
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8001/oauth2/redirect}
+
 # Custom CityHelp Properties (Legacy - migrating to app.jwt)
 cityhelp:
   # JWT Configuration
