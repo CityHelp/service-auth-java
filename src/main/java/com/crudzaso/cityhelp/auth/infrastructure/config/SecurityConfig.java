@@ -38,14 +38,18 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenProvider(), customUserDetailsService);
-    }
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private CustomOAuth2UserService customOAuth2UserService;
+
+    @Autowired
+    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
-    public JwtTokenProvider jwtTokenProvider() {
-        return new JwtTokenProvider();
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService);
     }
 
     @Bean
@@ -96,6 +100,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/verify-email").permitAll()
                     .requestMatchers("/api/auth/resend-verification").permitAll()
                     .requestMatchers("/oauth2/**").permitAll()
+                    .requestMatchers("/login/oauth2/code/google").permitAll()
                     .requestMatchers("/.well-known/jwks.json").permitAll()
 
                     // Health and actuator endpoints
@@ -108,6 +113,13 @@ public class SecurityConfig {
 
                     // All other endpoints require authentication
                     .anyRequest().authenticated()
+            )
+
+            // Configure OAuth2 Login
+            .oauth2Login(oauth2 -> oauth2
+                    .userInfoEndpoint(userInfo -> userInfo
+                            .userService(customOAuth2UserService))
+                    .successHandler(oAuth2AuthenticationSuccessHandler)
             )
 
             // Add JWT filter before UsernamePasswordAuthenticationFilter
