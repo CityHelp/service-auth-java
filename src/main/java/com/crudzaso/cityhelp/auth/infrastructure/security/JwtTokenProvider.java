@@ -1,7 +1,6 @@
 package com.crudzaso.cityhelp.auth.infrastructure.security;
 
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,22 +8,21 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 
 /**
  * JWT token provider for CityHelp Auth Service.
  * Handles JWT token generation, validation, and parsing.
- * Uses RS256 algorithm with key pair for JWKS endpoint support.
+ * Uses RS256 algorithm with RSA key pair for JWKS endpoint support.
  */
 @Component
 public class JwtTokenProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
-    @Value("${app.jwt.secret:cityhelp-default-secret-key-for-development-only-change-in-production}")
-    private String jwtSecret;
+    private final RsaKeyProvider rsaKeyProvider;
 
     @Value("${app.jwt.expiration-in-ms:86400000}") // 24 hours
     private long jwtExpirationInMs;
@@ -32,9 +30,16 @@ public class JwtTokenProvider {
     @Value("${app.jwt.refresh-expiration-in-ms:604800000}") // 7 days
     private long refreshExpirationInMs;
 
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+    public JwtTokenProvider(RsaKeyProvider rsaKeyProvider) {
+        this.rsaKeyProvider = rsaKeyProvider;
+    }
+
+    private RSAPrivateKey getSigningKey() {
+        return rsaKeyProvider.getPrivateKey();
+    }
+
+    private RSAPublicKey getVerificationKey() {
+        return rsaKeyProvider.getPublicKey();
     }
 
     /**
@@ -46,11 +51,14 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
         return Jwts.builder()
+                .header()
+                    .keyId(rsaKeyProvider.getKeyId())
+                    .and()
                 .subject(userPrincipal.getUsername())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .claim("type", "access")
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.RS256)
                 .compact();
     }
 
@@ -67,13 +75,16 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
         return Jwts.builder()
+                .header()
+                    .keyId(rsaKeyProvider.getKeyId())
+                    .and()
                 .subject(email)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .claim("userId", userId)
                 .claim("role", role)
                 .claim("type", "access")
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.RS256)
                 .compact();
     }
 
@@ -86,11 +97,14 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + refreshExpirationInMs);
 
         return Jwts.builder()
+                .header()
+                    .keyId(rsaKeyProvider.getKeyId())
+                    .and()
                 .subject(userPrincipal.getUsername())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .claim("type", "refresh")
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.RS256)
                 .compact();
     }
 
@@ -99,7 +113,7 @@ public class JwtTokenProvider {
      */
     public String getUsernameFromJWT(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(getVerificationKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -113,7 +127,7 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(getVerificationKey())
                 .build()
                 .parseSignedClaims(token);
             return true;
@@ -136,7 +150,7 @@ public class JwtTokenProvider {
      */
     public Date getExpirationFromJWT(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(getVerificationKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -149,7 +163,7 @@ public class JwtTokenProvider {
      */
     public String getTokenTypeFromJWT(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(getVerificationKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -174,7 +188,7 @@ public class JwtTokenProvider {
      */
     public Long getUserIdFromJWT(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(getVerificationKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

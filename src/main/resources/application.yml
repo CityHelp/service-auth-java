@@ -107,7 +107,24 @@ spring:
     suffix: .html
     mode: HTML
 
-# Custom CityHelp Properties
+# Application-wide JWT Configuration
+app:
+  jwt:
+    expiration-in-ms: 86400000    # 24 hours
+    refresh-expiration-in-ms: 604800000  # 7 days
+    rsa:
+      # RSA Private Key (PEM format, base64 encoded)
+      # Generate with: openssl genrsa -out private_key.pem 2048
+      # Leave empty to auto-generate (ONLY for development)
+      private-key: ${JWT_RSA_PRIVATE_KEY:}
+      # RSA Public Key (PEM format, base64 encoded)
+      # Extract from private key: openssl rsa -in private_key.pem -pubout -out public_key.pem
+      # Leave empty to auto-generate (ONLY for development)
+      public-key: ${JWT_RSA_PUBLIC_KEY:}
+      # Key ID for JWKS (should match JWT header 'kid')
+      key-id: ${JWT_KEY_ID:cityhelp-key-1}
+
+# Custom CityHelp Properties (Legacy - migrating to app.jwt)
 cityhelp:
   # JWT Configuration
   jwt:
