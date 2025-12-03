@@ -43,9 +43,12 @@ public class CustomUserDetailsService implements UserDetailsService {
                     "Cuenta de usuario no activa: " + emailOrUsername);
         }
 
+        // Handle null passwords for OAuth users by using empty string
+        String password = user.getPassword() != null ? user.getPassword() : "";
+
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail()) // Use email as username
-                .password(user.getPassword()) // Password can be null for OAuth users
+                .password(password) // Handle null password for OAuth users
                 .authorities(Collections.singletonList(
                         new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
                 ))

@@ -1,0 +1,144 @@
+# CityHelp Auth Service - Test Configuration
+# Optimized for Testcontainers and fast unit tests
+
+spring:
+  application:
+    name: cityhelp-auth-service-test
+
+  # PostgreSQL Testcontainers Configuration
+  datasource:
+    url: jdbc:tc:postgresql:15:///cityhelp_auth_test?TC_DAEMON=true&TC_TMPFS=/testtmpfs
+    username: test
+    password: test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      pool-name: CityHelpTestHikariCP
+
+  # JPA Test Configuration
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Fresh database for each test
+      show-sql: false
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.PostgreSQLDialect
+          format_sql: false
+          jdbc:
+            batch_size: 20
+            order_inserts: true
+            order_updates: true
+            default_schema: public
+
+  # Flyway disabled for tests (we use create-drop)
+  flyway:
+    enabled: false
+
+  # Redis Embedded for tests
+  data:
+    redis:
+      host: localhost
+      port: 6370
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  # Mail Test Configuration (Mock)
+  mail:
+    host: localhost
+    port: 3025  # Wiser test SMTP server
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+    default-encoding: UTF-8
+
+  # Thymeleaf Test Configuration
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+
+# JWT Test Configuration (Short expiration for fast tests)
+app:
+  jwt:
+    expiration-in-ms: 3600000    # 1 hour for tests
+    refresh-expiration-in-ms: 7200000  # 2 hours for tests
+    rsa:
+      # Test RSA Keys (you can generate real ones for integration tests)
+      private-key: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7VJTUt9Us8cKBw
+        4h6T8u6HwOJ5ZQQkG0PjZn7gtKjZFQLqDkGC2d7QzjYxgZyqgIvRj/F5
+        uEK6ZtJp8KQN9aKj7VE1ZGx8Jz3Gt9R3y4fN3E1XgBJGJlZzF3XJYo1B
+        TK8ZTNILGKLMnxVkJC9QH3J7jGt9YZ9vUsBN99JQ4QwKdYxU8vQN9a
+        -----END PRIVATE KEY-----
+      public-key: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs5UlNS31SzxwoHDh
+        hGpK4t0DkQJY3mV1RVZbHwnF8a3XhHYv3C1XwEkYmVnM3dcmjjUF9Lx
+        -----END PUBLIC KEY-----
+      key-id: test-key-1
+
+  # Email Verification Test Configuration
+  email:
+    verification:
+      expiration: 900000  # 15 minutes in milliseconds
+      max-attempts: 3
+      code-length: 6
+    from: noreply@cityhelp.com
+    from-name: CityHelp
+
+  # Rate Limiting Test Configuration
+  rate-limit:
+    login-attempts: 5
+    window-seconds: 300  # 5 minutes
+    verification-attempts: 3
+    verification-window: 300  # 5 minutes
+
+  # Password Test Configuration
+  password:
+    min-length: 8
+    require-uppercase: true
+    require-lowercase: true
+    require-digit: true
+    require-special-char: true
+
+# Logging Configuration for Tests (minimal output)
+logging:
+  level:
+    root: WARN
+    com.crudzaso.cityhelp.auth: INFO
+    org.springframework.security: INFO
+    org.springframework.web: WARN
+    org.springframework.data: WARN
+    org.hibernate.SQL: WARN
+    org.flywaydb: WARN
+    org.testcontainers: INFO
+
+# Spring Boot Actuator Test Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
