@@ -40,11 +40,11 @@ public interface UserRepositoryJpa extends JpaRepository<UserEntity, Long> {
 
     List<UserEntity> findByStatus(UserStatus status);
 
-    List<UserEntity> findByOAuthProvider(OAuthProvider provider);
+    List<UserEntity> findByOauthProvider(OAuthProvider provider);
 
     List<UserEntity> findByStatusAndIsVerified(UserStatus status, boolean isVerified);
 
-    List<UserEntity> findByStatusAndOAuthProvider(UserStatus status, OAuthProvider provider);
+    List<UserEntity> findByStatusAndOauthProvider(UserStatus status, OAuthProvider provider);
 
     // Update operations with explicit queries
     @Modifying

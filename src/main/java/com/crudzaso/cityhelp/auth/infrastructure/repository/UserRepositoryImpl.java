@@ -85,7 +85,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public List<User> findByOAuthProvider(OAuthProvider provider) {
-        return userRepositoryJpa.findByOAuthProvider(provider).stream()
+        return userRepositoryJpa.findByOauthProvider(provider).stream()
                 .map(UserEntity::toDomainModel)
                 .collect(Collectors.toList());
     }
