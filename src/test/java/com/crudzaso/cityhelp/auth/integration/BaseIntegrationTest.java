@@ -1,5 +1,6 @@
 package com.crudzaso.cityhelp.auth.integration;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,6 +36,7 @@ public abstract class BaseIntegrationTest {
     /**
      * PostgreSQL container with official PostgreSQL 15 image.
      * Database is created fresh for each test class.
+     * Using static initialization to ensure container is started before property configuration.
      */
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
@@ -44,6 +46,11 @@ public abstract class BaseIntegrationTest {
             .withPassword("test")
             .withReuse(true)
             .withLabel("app", "cityhelp-auth-test");
+
+    static {
+        // Start container in static initializer to ensure it's ready before @DynamicPropertySource
+        postgres.start();
+    }
     
     /**
      * Configures dynamic properties for Testcontainers.
@@ -65,11 +72,22 @@ public abstract class BaseIntegrationTest {
     
     /**
      * Setup method called once before all tests in the class.
-     * Starts the PostgreSQL container if not already running.
+     * Container is already started in static initializer.
      */
     @BeforeAll
     static void setUpClass() {
-        // Container is automatically started by @Container annotation
+        // Container is already started in static initializer
         // Additional setup can be added here if needed
+    }
+
+    /**
+     * Cleanup method called once after all tests in the class.
+     * Closes the PostgreSQL container to prevent resource leaks.
+     */
+    @AfterAll
+    static void tearDownClass() {
+        if (postgres != null && postgres.isRunning()) {
+            postgres.close();
+        }
     }
 }

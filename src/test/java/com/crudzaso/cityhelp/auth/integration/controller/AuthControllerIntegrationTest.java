@@ -9,7 +9,6 @@ import com.crudzaso.cityhelp.auth.domain.repository.EmailVerificationRepository;
 import com.crudzaso.cityhelp.auth.domain.enums.UserRole;
 import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
 import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
-import com.crudzaso.cityhelp.auth.infrastructure.controller.AuthController;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.*;
 import com.crudzaso.cityhelp.auth.infrastructure.security.JwtTokenProvider;
 import com.crudzaso.cityhelp.auth.integration.BaseIntegrationTest;
@@ -32,7 +31,6 @@ import java.util.Optional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.hamcrest.Matchers.*;
 import static org.assertj.core.api.Assertions.*;
 
 /**

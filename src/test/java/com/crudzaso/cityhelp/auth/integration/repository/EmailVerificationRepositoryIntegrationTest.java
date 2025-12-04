@@ -9,7 +9,6 @@ import com.crudzaso.cityhelp.auth.integration.BaseIntegrationTest;
 
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,7 +26,6 @@ import static org.assertj.core.api.Assertions.*;
  * - Code status management and cleanup
  * - Edge cases and validation
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 public class EmailVerificationRepositoryIntegrationTest extends BaseIntegrationTest {
 
     @Autowired

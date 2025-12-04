@@ -384,10 +384,10 @@ class JwtTokenProviderTest extends InfrastructureUnitTest {
     @Test
     @DisplayName("should include kid in JWT header")
     void shouldIncludeKid_InJwtHeader() {
-        // Arrange
-        String accessToken = jwtTokenProvider.generateToken(USER_ID, USER_EMAIL, USER_ROLE);
+        // Arrange & Act
+        jwtTokenProvider.generateToken(USER_ID, USER_EMAIL, USER_ROLE);
 
-        // Act & Assert
+        // Assert
         // Verify that key ID is used during token generation
         verify(rsaKeyProvider, atLeastOnce()).getKeyId();
 

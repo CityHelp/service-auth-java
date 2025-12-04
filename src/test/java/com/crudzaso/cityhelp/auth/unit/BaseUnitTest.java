@@ -22,7 +22,7 @@ public abstract class BaseUnitTest {
      * This replaces @RunWith(MockitoJUnitRunner.class) from JUnit 4
      */
     @BeforeEach
-    void setUp() {
+    protected void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
@@ -31,7 +31,7 @@ public abstract class BaseUnitTest {
      * Currently no cleanup needed, but available for future use.
      */
     @AfterEach
-    void tearDown() {
+    protected void tearDown() {
         // Cleanup can be added here if needed in the future
     }
 
