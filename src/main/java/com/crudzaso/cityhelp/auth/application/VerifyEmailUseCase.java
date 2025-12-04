@@ -75,18 +75,18 @@ public class VerifyEmailUseCase {
             );
         }
 
+        // Check if code has already been used
+        if (latestCode.get().isUsed()) {
+            throw new InvalidVerificationCodeException(
+                "Verification code has already been used"
+            );
+        }
+
         // Check if code is valid and not expired
         if (!latestCode.get().isValid() ||
                 LocalDateTime.now().isAfter(latestCode.get().getExpiresAt())) {
             throw new InvalidVerificationCodeException(
                     "Verification code has expired or is invalid"
-            );
-        }
-
-        // Check if code has already been used
-        if (latestCode.get().isUsed()) {
-            throw new InvalidVerificationCodeException(
-                "Verification code has already been used"
             );
         }
 
