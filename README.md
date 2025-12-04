@@ -228,7 +228,7 @@ psql -U postgres
 CREATE DATABASE cityhelp_auth;
 
 -- Create user with password
-CREATE USER auth_service_user WITH PASSWORD 'secure_password_change_in_production';
+CREATE USER auth_service_user WITH PASSWORD '[YOUR_SECURE_DB_PASSWORD]';
 
 -- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE cityhelp_auth TO auth_service_user;
@@ -274,14 +274,14 @@ Create a `.env` file in the project root with the following variables:
 # PostgreSQL Database
 DB_URL=jdbc:postgresql://localhost:5432/cityhelp_auth
 DB_USERNAME=auth_service_user
-DB_PASSWORD=secure_password_change_in_production
+DB_PASSWORD=[YOUR_DB_PASSWORD]
 ```
 
 #### JWT Configuration
 
 ```bash
 # JWT Secret Key (use a strong random string, min 256-bit)
-JWT_SECRET=your-secret-key-min-32-characters-long-change-in-production
+JWT_SECRET=[YOUR_JWT_SECRET_MIN_32_CHARACTERS]
 
 # JWT Access Token Expiration (milliseconds - default: 24 hours)
 JWT_EXPIRATION=86400000
@@ -301,8 +301,8 @@ JWT_KEY_ID=cityhelp-key-1
 
 ```bash
 # Google OAuth2 Credentials (get from Google Cloud Console)
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_CLIENT_ID=[YOUR_GOOGLE_CLIENT_ID]
+GOOGLE_CLIENT_SECRET=[YOUR_GOOGLE_CLIENT_SECRET]
 
 # OAuth2 Redirect URI
 OAUTH2_REDIRECT_URI=http://localhost:8001/oauth2/redirect
@@ -315,7 +315,7 @@ OAUTH2_REDIRECT_URI=http://localhost:8001/oauth2/redirect
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=noreply@cityhelp.com
-SMTP_PASSWORD=your-gmail-app-password
+SMTP_PASSWORD=[YOUR_SMTP_APP_PASSWORD]
 
 # Email sender information
 EMAIL_FROM=noreply@cityhelp.com
@@ -416,7 +416,7 @@ Content-Type: application/json
   "firstName": "John",
   "lastName": "Doe",
   "email": "john.doe@example.com",
-  "password": "SecureP@ss123"
+  "password": "[YOUR_TEST_PASSWORD]"
 }
 ```
 
@@ -455,7 +455,7 @@ Content-Type: application/json
 
 {
   "usernameOrEmail": "john.doe@example.com",
-  "password": "SecureP@ss123"
+  "password": "[YOUR_TEST_PASSWORD]"
 }
 ```
 
@@ -782,7 +782,7 @@ services:
     environment:
       POSTGRES_DB: cityhelp_auth
       POSTGRES_USER: auth_service_user
-      POSTGRES_PASSWORD: secure_password
+      POSTGRES_PASSWORD: [YOUR_POSTGRES_PASSWORD]
     ports:
       - "5432:5432"
     volumes:
@@ -800,7 +800,7 @@ services:
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/cityhelp_auth
       DB_USERNAME: auth_service_user
-      DB_PASSWORD: secure_password
+      DB_PASSWORD: [YOUR_DB_PASSWORD]
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:

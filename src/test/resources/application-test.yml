@@ -78,19 +78,10 @@ app:
     expiration-in-ms: 3600000    # 1 hour for tests
     refresh-expiration-in-ms: 7200000  # 2 hours for tests
     rsa:
-      # Test RSA Keys (you can generate real ones for integration tests)
-      private-key: |
-        -----BEGIN PRIVATE KEY-----
-        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7VJTUt9Us8cKBw
-        4h6T8u6HwOJ5ZQQkG0PjZn7gtKjZFQLqDkGC2d7QzjYxgZyqgIvRj/F5
-        uEK6ZtJp8KQN9aKj7VE1ZGx8Jz3Gt9R3y4fN3E1XgBJGJlZzF3XJYo1B
-        TK8ZTNILGKLMnxVkJC9QH3J7jGt9YZ9vUsBN99JQ4QwKdYxU8vQN9a
-        -----END PRIVATE KEY-----
-      public-key: |
-        -----BEGIN PUBLIC KEY-----
-        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs5UlNS31SzxwoHDh
-        hGpK4t0DkQJY3mV1RVZbHwnF8a3XhHYv3C1XwEkYmVnM3dcmjjUF9Lx
-        -----END PUBLIC KEY-----
+      # Test RSA Keys - Generate with: openssl genrsa -out test.key 2048
+      # For testing, use environment variables or generate keys programmatically
+      private-key: ${TEST_JWT_PRIVATE_KEY:}
+      public-key: ${TEST_JWT_PUBLIC_KEY:}
       key-id: test-key-1
 
   # Email Verification Test Configuration
