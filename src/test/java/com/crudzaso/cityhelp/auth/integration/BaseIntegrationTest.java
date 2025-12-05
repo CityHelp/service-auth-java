@@ -8,6 +8,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -15,16 +16,17 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * Base class for integration tests.
- * Uses Testcontainers for PostgreSQL with real database scenarios.
- * 
+ * Uses Testcontainers for PostgreSQL and Redis with real infrastructure scenarios.
+ *
  * <p>This class provides:
  * - Real PostgreSQL database in Docker container
+ * - Real Redis cache in Docker container
  * - Dynamic property configuration for Testcontainers
  * - Transaction rollback after each test
  * - Flyway migrations enabled for proper schema setup</p>
- * 
+ *
  * <p>Extend this class for all integration tests to ensure consistency
- * and realistic database testing scenarios.</p>
+ * and realistic infrastructure testing scenarios.</p>
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -47,20 +49,37 @@ public abstract class BaseIntegrationTest {
             .withPassword("test")
             .withReuse(true)
             .withLabel("app", "cityhelp-auth-test");
+
+    /**
+     * Redis container with official Redis 7 Alpine image.
+     * Cache is created fresh for each test class.
+     * Used for rate limiting and session management in integration tests.
+     */
+    @Container
+    @SuppressWarnings("resource")
+    static final GenericContainer<?> redis = new GenericContainer<>(
+            DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379)
+            .withReuse(true)
+            .withLabel("app", "cityhelp-auth-test-redis");
     
     /**
      * Configures dynamic properties for Testcontainers.
-     * Spring Boot will use these properties to connect to the container database.
+     * Spring Boot will use these properties to connect to container infrastructure.
      *
      * @param registry dynamic property registry
      */
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        // Ensure container is started before getting properties
+        // Ensure containers are started before getting properties
         if (!postgres.isRunning()) {
             postgres.start();
         }
+        if (!redis.isRunning()) {
+            redis.start();
+        }
 
+        // PostgreSQL properties
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
@@ -69,6 +88,10 @@ public abstract class BaseIntegrationTest {
         // Configure Flyway to use the Testcontainers database
         registry.add("spring.flyway.enabled", () -> "true");
         registry.add("spring.flyway.baseline-on-migrate", () -> "true");
+
+        // Redis properties
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379).toString());
     }
     
     /**
@@ -83,12 +106,15 @@ public abstract class BaseIntegrationTest {
 
     /**
      * Cleanup method called once after all tests in the class.
-     * Closes the PostgreSQL container to prevent resource leaks.
+     * Closes containers to prevent resource leaks.
      */
     @AfterAll
     static void tearDownClass() {
         if (postgres != null && postgres.isRunning()) {
             postgres.close();
+        }
+        if (redis != null && redis.isRunning()) {
+            redis.close();
         }
     }
 }

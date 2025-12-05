@@ -58,7 +58,7 @@ class JavaMailEmailServiceTest extends BaseUnitTest {
     private static final String HTML_CONTENT = "<html><body>Test email content</body></html>";
 
     @BeforeEach
-    public void setUp() {
+    void setUpEmailService() {
         emailService = new JavaMailEmailService(mailSender, templateEngine);
 
         // Set configuration properties

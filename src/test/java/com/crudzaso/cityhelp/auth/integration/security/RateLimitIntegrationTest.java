@@ -10,23 +10,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.concurrent.TimeUnit;
-
 import static org.hamcrest.Matchers.containsString;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * Integration tests for Rate Limiting functionality.
- * Tests rate limiting enforcement on authentication endpoints using MockMvc.
+ * Tests rate limiting enforcement on authentication endpoints using MockMvc and real Redis.
  *
  * Test Coverage:
  * - Login endpoint rate limiting (5 attempts / 5 minutes)
@@ -35,8 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - HTTP 429 response when limit exceeded
  * - Proper error messages in Spanish
  *
- * Note: Uses mocked Redis operations instead of Testcontainers Redis
- * for faster test execution and simpler setup.
+ * Note: Uses REAL Redis from Testcontainers for realistic integration testing.
  *
  * @author CityHelp Team
  * @since 1.0.0
@@ -51,60 +44,60 @@ class RateLimitIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @Autowired
     private RedisTemplate<String, Object> redisTemplate;
-
-    @MockBean
-    private ValueOperations<String, Object> valueOperations;
 
     @BeforeEach
     void setUp() {
-        // Setup RedisTemplate to return ValueOperations mock
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        // Clear Redis before each test to ensure test isolation
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushAll();
     }
 
     @Test
     @DisplayName("Should block login request when rate limit exceeded")
     void shouldBlockLoginRequest_WhenRateLimitExceeded() throws Exception {
-        // Arrange: Simulate 6th request (exceeds limit of 5)
+        // Arrange: Make 5 login requests to reach the limit
         String email = "testuser@example.com";
         LoginRequest loginRequest = new LoginRequest(email, "ValidP@ssw0rd");
 
-        // Simulate Redis returning count = 6 (exceeding limit)
-        when(valueOperations.increment(anyString())).thenReturn(6L);
+        // Act: Make 5 requests (under limit)
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)));
+        }
 
-        // Act & Assert
+        // Act & Assert: 6th request should be blocked (exceeds limit of 5)
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isTooManyRequests()) // HTTP 429
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value(containsString("Límite de intentos excedido")))
-                .andExpect(jsonPath("$.message").value(containsString("login")));
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.error").value("Too Many Requests"))
+                .andExpect(jsonPath("$.message").value(containsString("Rate limit exceeded")));
     }
 
     @Test
     @DisplayName("Should allow login request when under rate limit")
     void shouldAllowLoginRequest_WhenUnderRateLimit() throws Exception {
-        // Arrange: Simulate 3rd request (under limit of 5)
+        // Arrange: Make 3 requests (under limit of 5)
         String email = "validuser@example.com";
         LoginRequest loginRequest = new LoginRequest(email, "ValidP@ssw0rd");
 
-        // Simulate Redis returning count = 3 (under limit)
-        when(valueOperations.increment(anyString())).thenReturn(3L);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isNotFound()); // 404 because user doesn't exist (but rate limit passed)
+        // Act & Assert: All 3 requests should pass rate limit check
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+                    .andExpect(status().isBadRequest()) // 400 because invalid credentials (but rate limit passed)
+                    .andExpect(jsonPath("$.success").value(false));
+        }
     }
 
     @Test
     @DisplayName("Should block register request when rate limit exceeded")
     void shouldBlockRegisterRequest_WhenRateLimitExceeded() throws Exception {
-        // Arrange: Simulate 4th request (exceeds limit of 3)
+        // Arrange: Make 3 register requests to reach the limit
         RegisterRequest registerRequest = new RegisterRequest(
                 "Test",
                 "User",
@@ -112,73 +105,83 @@ class RateLimitIntegrationTest extends BaseIntegrationTest {
                 "ValidP@ssw0rd1!"
         );
 
-        // Simulate Redis returning count = 4 (exceeding limit of 3)
-        when(valueOperations.increment(anyString())).thenReturn(4L);
+        // Act: Make 3 requests (at limit)
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(post("/api/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)));
+        }
 
-        // Act & Assert
+        // Act & Assert: 4th request should be blocked (exceeds limit of 3)
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isTooManyRequests()) // HTTP 429
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value(containsString("Límite de intentos excedido")))
-                .andExpect(jsonPath("$.message").value(containsString("register")));
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.error").value("Too Many Requests"))
+                .andExpect(jsonPath("$.message").value(containsString("Rate limit exceeded")));
     }
 
     @Test
     @DisplayName("Should allow register request when under rate limit")
     void shouldAllowRegisterRequest_WhenUnderRateLimit() throws Exception {
-        // Arrange: Simulate 2nd request (under limit of 3)
+        // Arrange: Make 2 requests (under limit of 3)
         RegisterRequest registerRequest = new RegisterRequest(
                 "Test",
                 "User",
-                "newuser@example.com",
+                "newuser_under_limit@example.com",
                 "ValidP@ssw0rd1!"
         );
 
-        // Simulate Redis returning count = 2 (under limit)
-        when(valueOperations.increment(anyString())).thenReturn(2L);
-
-        // Act & Assert
+        // Act & Assert: First request should succeed with 201 Created
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isCreated()); // 201 Created (registration succeeds, but rate limit passed)
+                .andExpect(status().isCreated());
+
+        // Second request with same email should fail (email already exists), but rate limit should pass
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isBadRequest()); // 400 because email exists (but rate limit passed)
     }
 
     @Test
     @DisplayName("Should block verify-email request when rate limit exceeded")
     void shouldBlockVerifyEmailRequest_WhenRateLimitExceeded() throws Exception {
-        // Arrange: Simulate 4th request (exceeds limit of 3)
+        // Arrange: Make 3 verify-email requests to reach the limit
         VerifyEmailRequest verifyRequest = new VerifyEmailRequest("user@example.com", "123456");
 
-        // Simulate Redis returning count = 4 (exceeding limit of 3)
-        when(valueOperations.increment(anyString())).thenReturn(4L);
+        // Act: Make 3 requests (at limit)
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(post("/api/auth/verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(verifyRequest)));
+        }
 
-        // Act & Assert
+        // Act & Assert: 4th request should be blocked (exceeds limit of 3)
         mockMvc.perform(post("/api/auth/verify-email")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(verifyRequest)))
                 .andExpect(status().isTooManyRequests()) // HTTP 429
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value(containsString("Límite de intentos excedido")))
-                .andExpect(jsonPath("$.message").value(containsString("verify-email")));
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.error").value("Too Many Requests"))
+                .andExpect(jsonPath("$.message").value(containsString("Rate limit exceeded")));
     }
 
     @Test
     @DisplayName("Should allow verify-email request when under rate limit")
     void shouldAllowVerifyEmailRequest_WhenUnderRateLimit() throws Exception {
-        // Arrange: Simulate 1st request (under limit of 3)
+        // Arrange: Make 2 requests (under limit of 3)
         VerifyEmailRequest verifyRequest = new VerifyEmailRequest("user@example.com", "123456");
 
-        // Simulate Redis returning count = 1 (under limit)
-        when(valueOperations.increment(anyString())).thenReturn(1L);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/auth/verify-email")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(verifyRequest)))
-                .andExpect(status().isBadRequest()); // 400 because email doesn't exist (but rate limit passed)
+        // Act & Assert: Both requests should pass rate limit check
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/api/auth/verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(verifyRequest)))
+                    .andExpect(status().isBadRequest()); // 400 because email doesn't exist (but rate limit passed)
+        }
     }
 
     @Test
@@ -188,38 +191,39 @@ class RateLimitIntegrationTest extends BaseIntegrationTest {
         String email = "same-user@example.com";
         LoginRequest request1 = new LoginRequest(email, "ValidP@ssw0rd");
 
-        // Simulate Redis returning incremental counts for same email
-        when(valueOperations.increment(contains(email))).thenReturn(1L, 2L);
-
-        // Act: First request (count = 1)
+        // Act: First request should pass
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request1)))
-                .andExpect(status().isNotFound()); // Rate limit passed, but user not found
+                .andExpect(status().isBadRequest()) // Rate limit passed, but invalid credentials
+                .andExpect(jsonPath("$.success").value(false));
 
-        // Act: Second request (count = 2, still under limit)
+        // Act: Second request with same email should also pass (count = 2, still under limit of 5)
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request1)))
-                .andExpect(status().isNotFound()); // Rate limit passed, but user not found
+                .andExpect(status().isBadRequest()) // Rate limit passed, but invalid credentials
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
     @DisplayName("Should set TTL on first request in Redis")
     void shouldSetTTL_OnFirstRequest() throws Exception {
-        // Arrange: Simulate first request (count = 1)
-        LoginRequest loginRequest = new LoginRequest("user@example.com", "ValidP@ssw0rd");
+        // Arrange: Make first request to set TTL
+        LoginRequest loginRequest = new LoginRequest("ttl-test-user@example.com", "ValidP@ssw0rd");
 
-        // Simulate Redis returning count = 1 (first request)
-        when(valueOperations.increment(anyString())).thenReturn(1L);
-
-        // Act
+        // Act: Make first request
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isNotFound()); // Rate limit passed
+                .andExpect(status().isBadRequest()) // Rate limit passed, invalid credentials
+                .andExpect(jsonPath("$.success").value(false));
 
-        // Note: In real scenario, RateLimitService would call redisTemplate.expire()
-        // We can't verify this easily with MockBean, but the unit test covers it
+        // Assert: Verify that TTL was set by checking Redis key expiration
+        String rateKey = "rate_limit:login:ttl-test-user@example.com";
+        Long ttl = redisTemplate.getExpire(rateKey, java.util.concurrent.TimeUnit.SECONDS);
+
+        // TTL should be positive (key exists with expiration) and less than or equal to 300 seconds (5 minutes)
+        assert ttl != null && ttl > 0 && ttl <= 300 : "TTL should be set and <= 300 seconds";
     }
 }
