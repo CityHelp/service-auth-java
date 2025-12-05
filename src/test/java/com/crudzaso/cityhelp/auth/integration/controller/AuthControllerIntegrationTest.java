@@ -17,9 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -31,6 +29,7 @@ import java.util.Optional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.assertj.core.api.Assertions.*;
 
 /**
@@ -44,9 +43,7 @@ import static org.assertj.core.api.Assertions.*;
  * - Security and authentication
  * - Input validation and error handling
  */
-@SpringBootTest
 @AutoConfigureWebMvc
-@ActiveProfiles("test")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -65,6 +62,9 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
     private User testUser;
@@ -73,11 +73,15 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        mockMvc = MockMvcBuilders
+                .webAppContextSetup(webApplicationContext)
+                .apply(springSecurity())
+                .build();
         objectMapper = new ObjectMapper();
 
-        // Create test user
+        // Create test user with hashed password
         testUser = createTestUser("test@example.com", "Test", "User");
+        testUser.setPassword(passwordEncoder.encode("Password123!")); // Hash the password
         testUser.setStatus(UserStatus.ACTIVE);
         testUser.setIsVerified(true);
         testUser = userRepository.save(testUser);
@@ -89,9 +93,10 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
             testUser.getRole().name()
         );
 
+        // Create valid refresh token with UUID format
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUserId(testUser.getId());
-        refreshToken.setToken("refresh-token-123");
+        refreshToken.setToken(UUID.randomUUID().toString()); // Use UUID instead of static string
         refreshToken.setRevoked(false);
         refreshToken.setExpiresAt(LocalDateTime.now().plusDays(7));
         refreshToken.setCreatedAt(LocalDateTime.now());
@@ -124,14 +129,14 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Usuario registrado. Por favor verifica tu email con el código enviado."))
-                .andExpect(jsonPath("$.data.accessToken").doesNotExist())
-                .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
-                .andExpect(jsonPath("$.data.userInfo.email").value("john.doe@example.com"))
-                .andExpect(jsonPath("$.data.userInfo.firstName").value("John"))
-                .andExpect(jsonPath("$.data.userInfo.lastName").value("Doe"))
-                .andExpect(jsonPath("$.data.userInfo.role").value("USER"))
-                .andExpect(jsonPath("$.data.userInfo.isVerified").value(false))
-                .andExpect(jsonPath("$.data.userInfo.oauthProvider").value("LOCAL"));
+                .andExpect(jsonPath("$.access_token").doesNotExist())
+                .andExpect(jsonPath("$.refresh_token").doesNotExist())
+                .andExpect(jsonPath("$.user.email").value("john.doe@example.com"))
+                .andExpect(jsonPath("$.user.first_name").value("John"))
+                .andExpect(jsonPath("$.user.last_name").value("Doe"))
+                .andExpect(jsonPath("$.user.role").value("USER"))
+                .andExpect(jsonPath("$.user.is_verified").value(false))
+                .andExpect(jsonPath("$.user.oauth_provider").value("LOCAL"));
 
         // Verify user was created in database
         Optional<User> createdUser = userRepository.findByEmailIgnoreCase("john.doe@example.com");
@@ -171,7 +176,7 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
     void shouldLoginUser_WithValidCredentials() throws Exception {
         // Arrange
         LoginRequest request = new LoginRequest();
-        request.setEmailOrUsername("test@example.com");
+        request.setEmail("test@example.com");
         request.setPassword("Password123!");
 
         // Act & Assert
@@ -181,10 +186,10 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Inicio de sesión exitoso"))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.userInfo.email").value("test@example.com"))
-                .andExpect(jsonPath("$.data.userInfo.isVerified").value(true));
+                .andExpect(jsonPath("$.access_token").isNotEmpty())
+                .andExpect(jsonPath("$.refresh_token").isNotEmpty())
+                .andExpect(jsonPath("$.user.email").value("test@example.com"))
+                .andExpect(jsonPath("$.user.is_verified").value(true));
     }
 
     @Test
@@ -192,7 +197,7 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
     void shouldReturnError_ForInvalidCredentials() throws Exception {
         // Arrange
         LoginRequest request = new LoginRequest();
-        request.setEmailOrUsername("test@example.com");
+        request.setEmail("test@example.com");
         request.setPassword("wrongpassword");
 
         // Act & Assert
@@ -215,12 +220,12 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Usuario obtenido correctamente"))
-                .andExpect(jsonPath("$.data.userInfo.email").value("test@example.com"))
-                .andExpect(jsonPath("$.data.userInfo.firstName").value("Test"))
-                .andExpect(jsonPath("$.data.userInfo.lastName").value("User"))
-                .andExpect(jsonPath("$.data.userInfo.role").value("USER"))
-                .andExpect(jsonPath("$.data.userInfo.isVerified").value(true))
-                .andExpect(jsonPath("$.data.userInfo.oauthProvider").value("LOCAL"));
+                .andExpect(jsonPath("$.user.email").value("test@example.com"))
+                .andExpect(jsonPath("$.user.first_name").value("Test"))
+                .andExpect(jsonPath("$.user.last_name").value("User"))
+                .andExpect(jsonPath("$.user.role").value("USER"))
+                .andExpect(jsonPath("$.user.is_verified").value(true))
+                .andExpect(jsonPath("$.user.oauth_provider").value("LOCAL"));
     }
 
     @Test
@@ -248,8 +253,8 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Token renovado correctamente"))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty());
+                .andExpect(jsonPath("$.access_token").isNotEmpty())
+                .andExpect(jsonPath("$.refresh_token").isNotEmpty());
     }
 
     @Test

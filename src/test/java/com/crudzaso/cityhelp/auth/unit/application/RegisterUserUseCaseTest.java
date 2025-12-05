@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -52,6 +53,9 @@ class RegisterUserUseCaseTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     @InjectMocks
     private RegisterUserUseCase registerUserUseCase;
 
@@ -65,6 +69,9 @@ class RegisterUserUseCaseTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        // Setup password encoder mock
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded_password");
 
         // Setup test user
         testUser = new User();

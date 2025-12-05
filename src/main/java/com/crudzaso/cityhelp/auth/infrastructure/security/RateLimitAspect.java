@@ -118,10 +118,10 @@ public class RateLimitAspect {
         Object[] args = joinPoint.getArgs();
         for (Object arg : args) {
             if (arg instanceof LoginRequest) {
-                String emailOrUsername = ((LoginRequest) arg).getEmailOrUsername();
-                if (emailOrUsername != null && !emailOrUsername.isEmpty()) {
-                    logger.debug("Extracted identifier from LoginRequest: {}", emailOrUsername);
-                    return emailOrUsername;
+                String email = ((LoginRequest) arg).getEmail();
+                if (email != null && !email.isEmpty()) {
+                    logger.debug("Extracted identifier from LoginRequest: {}", email);
+                    return email;
                 }
             } else if (arg instanceof RegisterRequest) {
                 String email = ((RegisterRequest) arg).getEmail();

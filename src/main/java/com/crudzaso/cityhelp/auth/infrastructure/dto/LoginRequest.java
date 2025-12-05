@@ -11,11 +11,11 @@ import jakarta.validation.constraints.Size;
  */
 public class LoginRequest {
 
-    @NotBlank(message = "Email o nombre de usuario es requerido")
+    @NotBlank(message = "Email es requerido")
     @Email(message = "Email debe ser válido")
     @Size(max = 255, message = "Email no debe exceder 255 caracteres")
-    @JsonProperty("email_or_username")
-    private String emailOrUsername;
+    @JsonProperty("email")
+    private String email;
 
     @NotBlank(message = "Contraseña es requerida")
     @Size(min = 8, max = 128, message = "Contraseña debe tener entre 8 y 128 caracteres")
@@ -31,15 +31,15 @@ public class LoginRequest {
     }
 
     // Constructor for testing
-    public LoginRequest(String emailOrUsername, String password) {
-        this.emailOrUsername = emailOrUsername;
+    public LoginRequest(String email, String password) {
+        this.email = email;
         this.password = password;
         this.rememberMe = false;
     }
 
     // Getters and setters
-    public String getEmailOrUsername() { return emailOrUsername; }
-    public void setEmailOrUsername(String emailOrUsername) { this.emailOrUsername = emailOrUsername; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
@@ -50,7 +50,7 @@ public class LoginRequest {
     @Override
     public String toString() {
         return "LoginRequest{" +
-                "emailOrUsername='" + emailOrUsername + '\'' +
+                "email='" + email + '\'' +
                 ", rememberMe=" + rememberMe +
                 '}';
     }

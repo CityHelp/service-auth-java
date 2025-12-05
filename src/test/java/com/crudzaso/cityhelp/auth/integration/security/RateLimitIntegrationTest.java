@@ -1,21 +1,19 @@
 package com.crudzaso.cityhelp.auth.integration.security;
 
+import com.crudzaso.cityhelp.auth.integration.BaseIntegrationTest;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.LoginRequest;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.RegisterRequest;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.VerifyEmailRequest;
-import com.crudzaso.cityhelp.auth.infrastructure.service.RateLimitService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.concurrent.TimeUnit;
@@ -43,11 +41,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author CityHelp Team
  * @since 1.0.0
  */
-@SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
 @DisplayName("Rate Limiting Integration Tests")
-class RateLimitIntegrationTest {
+class RateLimitIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

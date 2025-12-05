@@ -43,7 +43,6 @@ import java.time.LocalDateTime;
  */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Authentication", description = "User authentication and account management endpoints")
 public class AuthController {
 
@@ -183,7 +182,7 @@ public class AuthController {
         try {
             // Execute login use case (validates credentials and checks account status)
             User user = loginUserUseCase.execute(
-                    request.getEmailOrUsername(),
+                    request.getEmail(),
                     request.getPassword()
             );
 
@@ -617,8 +616,8 @@ public class AuthController {
             // Delete email verification codes
             emailVerificationRepository.deleteAllByUserId(userId);
 
-            // Revoke all refresh tokens
-            refreshTokenRepository.revokeAllByUserId(userId);
+            // Delete all refresh tokens (physical deletion, not revoke)
+            refreshTokenRepository.deleteAllByUserId(userId);
 
             // 4. Delete user account
             userRepository.deleteById(userId);

@@ -4,7 +4,6 @@ import com.crudzaso.cityhelp.auth.domain.model.RefreshToken;
 import com.crudzaso.cityhelp.auth.domain.model.User;
 import com.crudzaso.cityhelp.auth.domain.repository.RefreshTokenRepository;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
-import com.crudzaso.cityhelp.auth.domain.enums.UserRole;
 import com.crudzaso.cityhelp.auth.integration.BaseIntegrationTest;
 
 import org.junit.jupiter.api.*;

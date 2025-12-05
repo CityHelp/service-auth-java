@@ -6,19 +6,15 @@ spring:
     name: cityhelp-auth-service-test
 
   # PostgreSQL Testcontainers Configuration
-  # DISABLED: Using @DynamicPropertySource from BaseIntegrationTest instead
-  # datasource:
-  #   url: jdbc:tc:postgresql:15:///cityhelp_auth_test?TC_DAEMON=true&TC_TMPFS=/testtmpfs
-  #   username: test
-  #   password: test
-  #   driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-  #   hikari:
-  #     maximum-pool-size: 10
-  #     minimum-idle: 2
-  #     connection-timeout: 20000
-  #     idle-timeout: 300000
-  #     max-lifetime: 1200000
-  #     pool-name: CityHelpTestHikariCP
+  # Configured dynamically via @DynamicPropertySource in BaseIntegrationTest
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      pool-name: CityHelpTestHikariCP
 
   # JPA Test Configuration
   jpa:

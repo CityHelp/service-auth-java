@@ -10,6 +10,7 @@ import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
 import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
 import com.crudzaso.cityhelp.auth.domain.repository.EmailVerificationRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -35,15 +36,18 @@ public class RegisterUserUseCase {
     private final UserRepository userRepository;
     private final EmailVerificationRepository emailVerificationRepository;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
     public RegisterUserUseCase(
             UserRepository userRepository,
             EmailVerificationRepository emailVerificationRepository,
-            EmailService emailService
+            EmailService emailService,
+            PasswordEncoder passwordEncoder
     ) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
         this.emailService = emailService;
+        this.passwordEncoder = passwordEncoder;
     }
     
     /**
@@ -60,14 +64,20 @@ public class RegisterUserUseCase {
                 "User with email '" + user.getEmail() + "' already exists"
             );
         }
-        
+
+        // Hash password before saving (BCrypt)
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+
         // Set default values for a local user
+        user.setUuid(UUID.randomUUID());  // Generate UUID for new user
         user.setOAuthProvider(OAuthProvider.LOCAL);
         user.setStatus(UserStatus.PENDING_VERIFICATION);
         user.setRole(UserRole.USER);
         user.setIsVerified(false);
         user.setCreatedAt(LocalDateTime.now());
-        
+
         // Save user to repository
         User savedUser = userRepository.save(user);
         

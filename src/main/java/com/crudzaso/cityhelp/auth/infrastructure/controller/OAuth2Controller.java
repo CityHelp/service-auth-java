@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
  * @author CityHelp Team
  */
 @RestController
-@CrossOrigin(origins = "*", maxAge = 3600)
 public class OAuth2Controller {
 
     /**

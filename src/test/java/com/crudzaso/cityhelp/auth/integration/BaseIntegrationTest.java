@@ -39,32 +39,33 @@ public abstract class BaseIntegrationTest {
      * Using static initialization to ensure container is started before property configuration.
      */
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
+    @SuppressWarnings("resource")
+    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres:15-alpine"))
             .withDatabaseName("cityhelp_auth_test")
             .withUsername("test")
             .withPassword("test")
             .withReuse(true)
             .withLabel("app", "cityhelp-auth-test");
-
-    static {
-        // Start container in static initializer to ensure it's ready before @DynamicPropertySource
-        postgres.start();
-    }
     
     /**
      * Configures dynamic properties for Testcontainers.
      * Spring Boot will use these properties to connect to the container database.
-     * 
+     *
      * @param registry dynamic property registry
      */
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
+        // Ensure container is started before getting properties
+        if (!postgres.isRunning()) {
+            postgres.start();
+        }
+
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.datasource.driver-class-name", postgres::getDriverClassName);
-        
+
         // Configure Flyway to use the Testcontainers database
         registry.add("spring.flyway.enabled", () -> "true");
         registry.add("spring.flyway.baseline-on-migrate", () -> "true");
