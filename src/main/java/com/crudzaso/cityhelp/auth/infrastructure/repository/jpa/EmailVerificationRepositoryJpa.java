@@ -21,7 +21,8 @@ import java.util.Optional;
 @Transactional
 public interface EmailVerificationRepositoryJpa extends JpaRepository<EmailVerificationCodeEntity, Long> {
 
-    Optional<EmailVerificationCodeEntity> findByUserIdAndIsUsedFalse(Long userId);
+    @Query("SELECT e FROM EmailVerificationCodeEntity e WHERE e.userId = :userId AND e.isUsed = false ORDER BY e.createdAt DESC LIMIT 1")
+    Optional<EmailVerificationCodeEntity> findByUserIdAndIsUsedFalse(@Param("userId") Long userId);
 
     Optional<EmailVerificationCodeEntity> findByUserIdAndCodeAndIsUsedFalse(Long userId, String code);
 
@@ -32,14 +33,14 @@ public interface EmailVerificationRepositoryJpa extends JpaRepository<EmailVerif
     List<EmailVerificationCodeEntity> findByExpiresAtBefore(LocalDateTime now);
 
     @Modifying
-    @Query("DELETE FROM EmailVerificationCodeEntity e WHERE e.userId = :userId AND e.isUsed = true")
-    void deleteUsedByUserId(@Param("userId") Long userId);
+    @Query("DELETE FROM EmailVerificationCodeEntity e WHERE e.userId = :userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
 
     @Modifying
     @Query("DELETE FROM EmailVerificationCodeEntity e WHERE e.expiresAt < :now")
     int deleteExpired(@Param("now") LocalDateTime now);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE EmailVerificationCodeEntity e SET e.isUsed = true WHERE e.id = :id")
     void markAsUsed(@Param("id") Long id);
 

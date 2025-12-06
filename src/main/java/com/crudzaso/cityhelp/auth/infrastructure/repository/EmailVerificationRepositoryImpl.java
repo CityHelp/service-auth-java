@@ -75,7 +75,7 @@ public class EmailVerificationRepositoryImpl implements EmailVerificationReposit
 
     @Override
     public void deleteAllByUserId(Long userId) {
-        jpaRepository.deleteUsedByUserId(userId);
+        jpaRepository.deleteAllByUserId(userId);
     }
 
     @Override

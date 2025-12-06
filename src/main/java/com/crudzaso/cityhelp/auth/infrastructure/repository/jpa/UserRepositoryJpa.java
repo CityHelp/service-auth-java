@@ -47,15 +47,15 @@ public interface UserRepositoryJpa extends JpaRepository<UserEntity, Long> {
     List<UserEntity> findByStatusAndOauthProvider(UserStatus status, OAuthProvider provider);
 
     // Update operations with explicit queries
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE UserEntity u SET u.lastLoginAt = :lastLoginAt WHERE u.id = :userId")
     int updateLastLoginAtById(@Param("userId") Long userId, @Param("lastLoginAt") LocalDateTime lastLoginAt);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE UserEntity u SET u.isVerified = :isVerified WHERE u.id = :userId")
     int updateIsVerifiedById(@Param("userId") Long userId, @Param("isVerified") boolean isVerified);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE UserEntity u SET u.status = :status WHERE u.id = :userId")
     int updateStatusById(@Param("userId") Long userId, @Param("status") UserStatus status);
 }

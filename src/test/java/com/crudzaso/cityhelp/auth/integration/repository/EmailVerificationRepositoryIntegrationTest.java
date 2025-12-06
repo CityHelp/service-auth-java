@@ -228,13 +228,13 @@ public class EmailVerificationRepositoryIntegrationTest extends BaseIntegrationT
         // Arrange - add more expired codes
         EmailVerificationCode expiredCode2 = createVerificationCode(
             testUser.getId(),
-            "expired-2",
+            "999998",
             false,
             LocalDateTime.now().minusMinutes(10)
         );
         EmailVerificationCode expiredCode3 = createVerificationCode(
             secondUser.getId(),
-            "expired-3",
+            "999999",
             true,
             LocalDateTime.now().minusHours(1)
         );
@@ -258,7 +258,7 @@ public class EmailVerificationRepositoryIntegrationTest extends BaseIntegrationT
         // Arrange - add more used codes
         EmailVerificationCode usedCode2 = createVerificationCode(
             testUser.getId(),
-            "used-2",
+            "222222",
             true,
             LocalDateTime.now().plusMinutes(5)
         );

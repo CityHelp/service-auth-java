@@ -9,6 +9,7 @@ import com.crudzaso.cityhelp.auth.integration.BaseIntegrationTest;
 
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.*;
  * - Business-specific queries (findActiveUsers, countByStatus)
  * - Edge cases and error scenarios
  */
+@Transactional
 public class UserRepositoryIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
@@ -217,7 +219,7 @@ public class UserRepositoryIntegrationTest extends BaseIntegrationTest {
         assertThat(users).hasSize(2);
         assertThat(users)
             .extracting(User::getEmail)
-            .containsExactlyInAnyOrder("john.doe@example.com", "newuser@example.com");
+            .containsExactlyInAnyOrder("john.doe@example.com", "jane.smith@gmail.com");
     }
 
     @Test
@@ -408,11 +410,8 @@ public class UserRepositoryIntegrationTest extends BaseIntegrationTest {
             // Clean up all test users by finding them and deleting individually
             List<User> allUsers = List.of(testUser, oauthUser, adminUser);
             for (User user : allUsers) {
-                if (user != null) {
-                    Optional<User> foundUser = userRepository.findById(user.getId());
-                    if (foundUser.isPresent()) {
-                        userRepository.deleteById(foundUser.get().getId());
-                    }
+                if (user != null && user.getId() != null) {
+                    userRepository.deleteById(user.getId());
                 }
             }
         } catch (Exception e) {
