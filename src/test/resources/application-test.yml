@@ -9,12 +9,17 @@ spring:
   # Configured dynamically via @DynamicPropertySource in BaseIntegrationTest
   datasource:
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 20000
-      idle-timeout: 300000
-      max-lifetime: 1200000
+      # OPTIMIZATION FOR PERSISTENT POSTGRESQL TESTS
+      # Fixes timeout for 33 failing tests: connection-timeout increased from 20s to 90s
+      maximum-pool-size: 20                    # More connections for concurrent tests
+      minimum-idle: 10                         # Connections ready immediately
+      connection-timeout: 90000                # 90 seconds (default: 20000) - CRITICAL
+      idle-timeout: 300000                     # 5 minutes
+      max-lifetime: 1800000                    # 30 minutes
       pool-name: CityHelpTestHikariCP
+      connection-test-query: SELECT 1          # Test query to validate connections
+      leak-detection-threshold: 60000          # Detect leaks after 60s
+      validation-timeout: 5000                 # 5 seconds for validation
 
   # JPA Test Configuration
   jpa:
