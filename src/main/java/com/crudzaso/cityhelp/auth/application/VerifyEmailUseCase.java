@@ -106,6 +106,7 @@ public class VerifyEmailUseCase {
         // Mark code as used and update user status
         emailVerificationRepository.markAsUsedById(latestCode.get().getId());
         userRepository.updateStatus(userId, UserStatus.ACTIVE);
+        userRepository.markAsVerified(userId);
 
         // Send welcome email after successful verification
         try {
