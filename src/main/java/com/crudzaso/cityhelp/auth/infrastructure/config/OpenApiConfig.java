@@ -73,7 +73,8 @@ public class OpenApiConfig {
                                 .url("https://api.cityhelp.com")
                                 .description("Production server")
                 ))
-                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+                // Note: Security is applied per-endpoint using @SecurityRequirement annotation
+                // Do NOT add global security requirement - it would require auth for all endpoints
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,
                                 new SecurityScheme()
