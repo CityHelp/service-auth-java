@@ -15,7 +15,7 @@ spring:
       minimum-idle: 10                         # Connections ready immediately
       connection-timeout: 90000                # 90 seconds (default: 20000) - CRITICAL
       idle-timeout: 300000                     # 5 minutes
-      max-lifetime: 1800000                    # 30 minutes
+      max-lifetime: 60000                      # 1 minute (optimized for Testcontainers lifecycle)
       pool-name: CityHelpTestHikariCP
       connection-test-query: SELECT 1          # Test query to validate connections
       leak-detection-threshold: 60000          # Detect leaks after 60s

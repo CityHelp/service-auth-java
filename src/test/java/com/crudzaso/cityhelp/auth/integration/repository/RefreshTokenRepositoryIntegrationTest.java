@@ -6,6 +6,8 @@ import com.crudzaso.cityhelp.auth.domain.repository.RefreshTokenRepository;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import com.crudzaso.cityhelp.auth.integration.BaseIntegrationTest;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -33,6 +35,9 @@ public class RefreshTokenRepositoryIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     private User testUser;
     private User secondUser;
     private RefreshToken activeToken;
@@ -49,7 +54,7 @@ public class RefreshTokenRepositoryIntegrationTest extends BaseIntegrationTest {
 
         // Create refresh tokens
         activeToken = createRefreshToken(testUser.getId(), "active-token-123", false, LocalDateTime.now().plusDays(7));
-        expiredToken = createRefreshToken(testUser.getId(), "expired-token-456", true, LocalDateTime.now().minusDays(1));
+        expiredToken = createRefreshToken(testUser.getId(), "expired-token-456", false, LocalDateTime.now().minusDays(1));
 
         activeToken = refreshTokenRepository.save(activeToken);
         expiredToken = refreshTokenRepository.save(expiredToken);
@@ -162,6 +167,8 @@ public class RefreshTokenRepositoryIntegrationTest extends BaseIntegrationTest {
     void shouldRevokeAllTokensForUser() {
         // Act
         refreshTokenRepository.revokeAllByUserId(testUser.getId());
+        entityManager.flush();
+        entityManager.clear();
 
         // Assert
         List<RefreshToken> userTokens = refreshTokenRepository.findByUserId(testUser.getId());
@@ -209,12 +216,21 @@ public class RefreshTokenRepositoryIntegrationTest extends BaseIntegrationTest {
     @Test
     @DisplayName("Should find all revoked tokens")
     void shouldFindAllRevokedTokens() {
+        // Arrange - create explicitly revoked token for this test
+        RefreshToken revokedToken = createRefreshToken(
+            testUser.getId(),
+            "revoked-token-789",
+            true,  // Explicitly revoked
+            LocalDateTime.now().plusDays(7)
+        );
+        refreshTokenRepository.save(revokedToken);
+
         // Act
         List<RefreshToken> revokedTokens = refreshTokenRepository.findRevoked();
 
         // Assert
         assertThat(revokedTokens).hasSize(1);
-        assertThat(revokedTokens.get(0).getToken()).isEqualTo("expired-token-456");
+        assertThat(revokedTokens.get(0).getToken()).isEqualTo("revoked-token-789");
         assertThat(revokedTokens.get(0).isRevoked()).isTrue();
     }
 

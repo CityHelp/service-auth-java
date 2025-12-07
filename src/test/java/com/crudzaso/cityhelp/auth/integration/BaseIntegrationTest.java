@@ -1,9 +1,9 @@
 package com.crudzaso.cityhelp.auth.integration;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -33,6 +33,7 @@ import org.testcontainers.utility.DockerImageName;
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class BaseIntegrationTest {
     
     /**
@@ -105,16 +106,12 @@ public abstract class BaseIntegrationTest {
     }
 
     /**
-     * Cleanup method called once after all tests in the class.
-     * Closes containers to prevent resource leaks.
+     * Testcontainers automatically manages container lifecycle.
+     * Manual cleanup removed to prevent HikariCP connection validation errors.
+     *
+     * Previous issue: Closing containers in @AfterAll caused HikariCP to try validating
+     * connections from a closed PostgreSQL container when the next test class started.
+     *
+     * Solution: Let Testcontainers handle cleanup automatically with withReuse(true).
      */
-    @AfterAll
-    static void tearDownClass() {
-        if (postgres != null && postgres.isRunning()) {
-            postgres.close();
-        }
-        if (redis != null && redis.isRunning()) {
-            redis.close();
-        }
-    }
 }
