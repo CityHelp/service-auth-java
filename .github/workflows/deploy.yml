@@ -1,0 +1,99 @@
+name: Deploy to VPS
+
+on:
+  workflow_run:
+    workflows: ["Publish to GHCR"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+
+            echo "Starting deployment..."
+
+            # Login to GHCR
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull latest image
+            docker pull ghcr.io/${{ github.repository }}:latest
+
+            # Stop and remove old container
+            docker stop cityhelp-auth || true
+            docker rm cityhelp-auth || true
+
+            # Create .env file if not exists
+            if [ ! -f /app/cityhelp/.env ]; then
+              echo "Creating .env file from secrets..."
+              cat > /app/cityhelp/.env << 'EOF'
+            ${{ secrets.APP_ENV_VARS }}
+            EOF
+            fi
+
+            # Run new container
+            docker run -d \
+              --name cityhelp-auth \
+              --restart unless-stopped \
+              -p 8001:8001 \
+              --env-file /app/cityhelp/.env \
+              -v /app/cityhelp/logs:/app/logs \
+              ghcr.io/${{ github.repository }}:latest
+
+            # Wait for service to be ready
+            echo "Waiting for service to be ready..."
+            sleep 10
+
+            # Health check
+            for i in {1..30}; do
+              if curl -f http://localhost:8001/actuator/health > /dev/null 2>&1; then
+                echo "Service is healthy"
+                exit 0
+              fi
+              echo "Attempt $i: Service not ready yet..."
+              sleep 2
+            done
+
+            echo "ERROR: Service failed to start"
+            docker logs cityhelp-auth
+            docker stop cityhelp-auth
+            exit 1
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed successfully"
+          echo "Service URL: https://${{ secrets.VPS_HOST }}:8001"
+          echo "Health endpoint: https://${{ secrets.VPS_HOST }}:8001/actuator/health"
+
+      - name: Post deployment cleanup
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            echo "Cleaning up Docker resources..."
+            docker image prune -f --filters "dangling=true"
+            docker system prune -f --volumes
