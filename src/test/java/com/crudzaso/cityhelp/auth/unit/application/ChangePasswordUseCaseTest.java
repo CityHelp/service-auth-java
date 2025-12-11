@@ -6,7 +6,6 @@ import com.crudzaso.cityhelp.auth.application.exception.UserNotFoundException;
 import com.crudzaso.cityhelp.auth.domain.model.User;
 import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
 import com.crudzaso.cityhelp.auth.domain.enums.UserRole;
-import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

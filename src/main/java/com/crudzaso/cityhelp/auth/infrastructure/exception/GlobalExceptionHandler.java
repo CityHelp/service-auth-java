@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -71,6 +72,31 @@ public class GlobalExceptionHandler {
                 .build();
 
         logger.warn("Validation error: {}", errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Handles JSON deserialization errors (invalid JSON format or unrecognized properties).
+     * Returns a 400 Bad Request response.
+     *
+     * @param ex The HTTP message not readable exception
+     * @param request The web request context
+     * @return ResponseEntity with error details
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            WebRequest request) {
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Invalid JSON")
+                .message("Request body contains invalid JSON or unrecognized properties")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        logger.warn("Invalid JSON in request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 

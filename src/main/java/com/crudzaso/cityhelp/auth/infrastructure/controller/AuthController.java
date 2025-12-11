@@ -168,7 +168,7 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = AuthResponse.class))
             ),
             @ApiResponse(
-                    responseCode = "400",
+                    responseCode = "401",
                     description = "Invalid credentials or account not verified",
                     content = @Content(schema = @Schema(implementation = AuthResponse.class))
             ),
@@ -369,8 +369,13 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = AuthResponse.class))
             ),
             @ApiResponse(
+                    responseCode = "404",
+                    description = "Email not found",
+                    content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            ),
+            @ApiResponse(
                     responseCode = "400",
-                    description = "Email not found or already verified",
+                    description = "Email already verified",
                     content = @Content(schema = @Schema(implementation = AuthResponse.class))
             )
     })
@@ -383,7 +388,7 @@ public class AuthController {
                     .orElse(null);
 
             if (user == null) {
-                return ResponseEntity.badRequest()
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(AuthResponse.error("Email no encontrado"));
             }
 

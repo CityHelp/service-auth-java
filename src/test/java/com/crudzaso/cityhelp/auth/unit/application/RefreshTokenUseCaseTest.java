@@ -653,12 +653,12 @@ class RefreshTokenUseCaseTest {
         @Test
         @DisplayName("Should validate token expiration with millisecond precision")
         void shouldValidateTokenExpiration_WithMillisecondPrecision() {
-            // Arrange - Token that expires in 1 millisecond
+            // Arrange - Token that expires in 100 milliseconds (precise but not a race condition)
             RefreshToken barelyValidToken = new RefreshToken();
             barelyValidToken.setId(1L);
             barelyValidToken.setToken(REFRESH_TOKEN_VALUE);
             barelyValidToken.setUserId(USER_ID);
-            barelyValidToken.setExpiresAt(LocalDateTime.now().plusNanos(1_000_000)); // 1 millisecond
+            barelyValidToken.setExpiresAt(LocalDateTime.now().plusNanos(100_000_000)); // 100 milliseconds
             barelyValidToken.setCreatedAt(LocalDateTime.now().minusDays(1));
             barelyValidToken.setRevoked(false);
 
