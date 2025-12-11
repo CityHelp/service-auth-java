@@ -94,6 +94,9 @@ public class SecurityConfig {
 
             // Configure authorization rules
             .authorizeHttpRequests(authz -> authz
+                    // Health and actuator endpoints (MUST be first)
+                    .requestMatchers("/actuator/**").permitAll()
+
                     // Public endpoints - no authentication required
                     .requestMatchers("/api/auth/register").permitAll()
                     .requestMatchers("/api/auth/login").permitAll()
@@ -106,10 +109,6 @@ public class SecurityConfig {
                     .requestMatchers("/oauth2/**").permitAll()
                     .requestMatchers("/login/oauth2/code/google").permitAll()
                     .requestMatchers("/.well-known/jwks.json").permitAll()
-
-                    // Health and actuator endpoints
-                    .requestMatchers("/actuator/health").permitAll()
-                    .requestMatchers("/actuator/info").permitAll()
 
                     // Swagger/OpenAPI documentation
                     .requestMatchers("/swagger-ui.html").permitAll()

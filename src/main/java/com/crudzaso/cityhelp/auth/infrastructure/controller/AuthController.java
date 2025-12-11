@@ -21,6 +21,8 @@ import com.crudzaso.cityhelp.auth.application.exception.ExpiredTokenException;
 import com.crudzaso.cityhelp.auth.application.exception.TooManyRequestsException;
 import com.crudzaso.cityhelp.auth.infrastructure.security.JwtTokenProvider;
 import com.crudzaso.cityhelp.auth.infrastructure.security.RateLimited;
+import com.crudzaso.cityhelp.auth.infrastructure.service.MetricsService;
+import io.micrometer.core.instrument.Timer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -57,6 +59,7 @@ public class AuthController {
     private final LogoutUserUseCase logoutUserUseCase;
     private final ChangePasswordUseCase changePasswordUseCase;
     private final JwtTokenProvider jwtTokenProvider;
+    private final MetricsService metricsService;
 
     public AuthController(
             UserRepository userRepository,
@@ -68,7 +71,8 @@ public class AuthController {
             RefreshTokenUseCase refreshTokenUseCase,
             LogoutUserUseCase logoutUserUseCase,
             ChangePasswordUseCase changePasswordUseCase,
-            JwtTokenProvider jwtTokenProvider
+            JwtTokenProvider jwtTokenProvider,
+            MetricsService metricsService
     ) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
@@ -80,6 +84,7 @@ public class AuthController {
         this.logoutUserUseCase = logoutUserUseCase;
         this.changePasswordUseCase = changePasswordUseCase;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.metricsService = metricsService;
     }
 
     /**
@@ -112,6 +117,7 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(
             @Parameter(description = "User registration details including first name, last name, email, and password", required = true)
             @Valid @RequestBody RegisterRequest request) {
+        Timer.Sample timerSample = metricsService.startRegistrationTimer();
         try {
             // Create new user (pending verification)
             User newUser = new User(
@@ -123,6 +129,10 @@ public class AuthController {
 
             // Execute registration use case (generates verification code automatically)
             User savedUser = registerUserUseCase.execute(newUser);
+
+            // Record successful registration
+            metricsService.recordUserRegistration();
+            metricsService.recordEmailVerificationCodeSent();
 
             AuthResponse.UserInfo userInfo = new AuthResponse.UserInfo(
                     savedUser.getUuid().toString(),
@@ -143,6 +153,7 @@ public class AuthController {
                     ));
 
         } catch (TooManyRequestsException e) {
+            metricsService.recordRateLimitExceeded();
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(AuthResponse.error(e.getMessage()));
         } catch (UserAlreadyExistsException e) {
@@ -151,6 +162,8 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al registrar usuario: " + e.getMessage()));
+        } finally {
+            metricsService.recordRegistrationDuration(timerSample);
         }
     }
 
@@ -183,12 +196,17 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(
             @Parameter(description = "Login credentials with email/username and password", required = true)
             @Valid @RequestBody LoginRequest request) {
+        Timer.Sample timerSample = metricsService.startLoginTimer();
+        metricsService.recordLoginAttempt();
         try {
             // Execute login use case (validates credentials and checks account status)
             User user = loginUserUseCase.execute(
                     request.getEmail(),
                     request.getPassword()
             );
+
+            // Record successful login
+            metricsService.recordLoginSuccess();
 
             // Generate JWT access token
             String accessToken = jwtTokenProvider.generateToken(
@@ -219,14 +237,23 @@ public class AuthController {
                     ));
 
         } catch (TooManyRequestsException e) {
+            metricsService.recordRateLimitExceeded();
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(AuthResponse.error(e.getMessage()));
         } catch (InvalidCredentialsException e) {
+            metricsService.recordLoginFailure();
+            // Check if account got locked
+            if (e.getMessage().contains("bloqueada")) {
+                metricsService.recordAccountLockout();
+            }
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Email o contraseña incorrectos"));
         } catch (Exception e) {
+            metricsService.recordLoginFailure();
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al iniciar sesión: " + e.getMessage()));
+        } finally {
+            metricsService.recordLoginDuration(timerSample);
         }
     }
 
@@ -259,11 +286,13 @@ public class AuthController {
     public ResponseEntity<AuthResponse> verifyEmail(
             @Parameter(description = "Email verification request with email and 6-digit code", required = true)
             @Valid @RequestBody VerifyEmailRequest request) {
+        Timer.Sample timerSample = metricsService.startEmailVerificationTimer();
         try {
             User user = userRepository.findByEmailIgnoreCase(request.getEmail())
                     .orElse(null);
 
             if (user == null) {
+                metricsService.recordEmailVerificationFailure();
                 return ResponseEntity.badRequest()
                         .body(AuthResponse.error("Email no encontrado"));
             }
@@ -276,18 +305,26 @@ public class AuthController {
             // Execute verification use case (validates code and marks user as verified)
             verifyEmailUseCase.execute(user.getId(), request.getVerificationCode());
 
+            // Record successful verification
+            metricsService.recordEmailVerificationSuccess();
+
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Email verificado correctamente"));
 
         } catch (TooManyRequestsException e) {
+            metricsService.recordRateLimitExceeded();
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(AuthResponse.error(e.getMessage()));
         } catch (InvalidVerificationCodeException e) {
+            metricsService.recordEmailVerificationFailure();
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Código de verificación inválido o expirado"));
         } catch (Exception e) {
+            metricsService.recordEmailVerificationFailure();
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al verificar email: " + e.getMessage()));
+        } finally {
+            metricsService.recordEmailVerificationDuration(timerSample);
         }
     }
 
@@ -411,6 +448,9 @@ public class AuthController {
 
             emailVerificationRepository.save(emailCode);
 
+            // Record verification code resend
+            metricsService.recordEmailVerificationResend();
+
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Código de verificación reenviado"));
 
@@ -493,9 +533,14 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refreshToken(
             @Parameter(description = "Refresh token request with valid refresh token", required = true)
             @Valid @RequestBody RefreshTokenRequest request) {
+        Timer.Sample timerSample = metricsService.startTokenRefreshTimer();
+        metricsService.recordTokenRefreshAttempt();
         try {
             // Validate refresh token and get user
             User user = refreshTokenUseCase.execute(request.getRefreshToken());
+
+            // Record successful refresh
+            metricsService.recordTokenRefreshSuccess();
 
             // Generate new JWT access token
             String newAccessToken = jwtTokenProvider.generateToken(
@@ -516,11 +561,15 @@ public class AuthController {
                     ));
 
         } catch (InvalidCredentialsException e) {
+            metricsService.recordTokenRefreshFailure();
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(AuthResponse.error("Refresh token inválido o expirado"));
         } catch (Exception e) {
+            metricsService.recordTokenRefreshFailure();
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al renovar token: " + e.getMessage()));
+        } finally {
+            metricsService.recordTokenRefreshDuration(timerSample);
         }
     }
 
@@ -565,6 +614,9 @@ public class AuthController {
                 return ResponseEntity.badRequest()
                         .body(AuthResponse.error("Error al cerrar sesión"));
             }
+
+            // Record successful logout
+            metricsService.recordLogout();
 
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Sesión cerrada correctamente"));
@@ -631,6 +683,9 @@ public class AuthController {
             // 4. Delete user account
             userRepository.deleteById(userId);
 
+            // Record account deletion
+            metricsService.recordUserAccountDeletion();
+
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Cuenta eliminada permanentemente"));
 
@@ -686,10 +741,14 @@ public class AuthController {
             // Execute change password use case
             changePasswordUseCase.execute(userId, request.getCurrentPassword(), request.getNewPassword());
 
+            // Record successful password change
+            metricsService.recordPasswordChangeSuccess();
+
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Contraseña cambiada exitosamente"));
 
         } catch (InvalidCredentialsException e) {
+            metricsService.recordPasswordChangeFailure();
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error(e.getMessage()));
         } catch (InvalidTokenException e) {
@@ -699,6 +758,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(AuthResponse.error("Token expirado"));
         } catch (Exception e) {
+            metricsService.recordPasswordChangeFailure();
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al cambiar contraseña: " + e.getMessage()));
         }

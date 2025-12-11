@@ -7,6 +7,8 @@ import com.crudzaso.cityhelp.auth.application.exception.InvalidTokenException;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.ForgotPasswordRequest;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.ResetPasswordRequest;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.AuthResponse;
+import com.crudzaso.cityhelp.auth.infrastructure.service.MetricsService;
+import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,40 +24,61 @@ public class PasswordResetController {
     private final RequestPasswordResetUseCase requestPasswordResetUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final ValidateResetTokenUseCase validateResetTokenUseCase;
+    private final MetricsService metricsService;
 
     public PasswordResetController(
             RequestPasswordResetUseCase requestPasswordResetUseCase,
             ResetPasswordUseCase resetPasswordUseCase,
-            ValidateResetTokenUseCase validateResetTokenUseCase
+            ValidateResetTokenUseCase validateResetTokenUseCase,
+            MetricsService metricsService
     ) {
         this.requestPasswordResetUseCase = requestPasswordResetUseCase;
         this.resetPasswordUseCase = resetPasswordUseCase;
         this.validateResetTokenUseCase = validateResetTokenUseCase;
+        this.metricsService = metricsService;
     }
 
     @Operation(summary = "Request password reset")
     @PostMapping("/forgot-password")
     public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        requestPasswordResetUseCase.execute(request.getEmail());
-
-        return ResponseEntity.ok(AuthResponse.success(
-            "Si el email existe en el sistema, recibirá un enlace para restablecer su contraseña"
-        ));
+        metricsService.recordPasswordResetRequest();
+        try {
+            requestPasswordResetUseCase.execute(request.getEmail());
+            return ResponseEntity.ok(AuthResponse.success(
+                "Si el email existe en el sistema, recibirá un enlace para restablecer su contraseña"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.ok(AuthResponse.success(
+                "Si el email existe en el sistema, recibirá un enlace para restablecer su contraseña"
+            ));
+        }
     }
 
     @Operation(summary = "Reset password with token")
     @PostMapping("/reset-password")
     public ResponseEntity<AuthResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        Timer.Sample timerSample = metricsService.startPasswordResetTimer();
         try {
             resetPasswordUseCase.execute(request.getToken(), request.getNewPassword());
+
+            // Record successful password reset
+            metricsService.recordPasswordResetSuccess();
 
             return ResponseEntity.ok(AuthResponse.success(
                 "Contraseña restablecida exitosamente"
             ));
         } catch (InvalidTokenException e) {
+            metricsService.recordPasswordResetFailure();
             return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(AuthResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            metricsService.recordPasswordResetFailure();
+            return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(AuthResponse.error("Error al restablecer contraseña"));
+        } finally {
+            metricsService.recordPasswordResetDuration(timerSample);
         }
     }
 

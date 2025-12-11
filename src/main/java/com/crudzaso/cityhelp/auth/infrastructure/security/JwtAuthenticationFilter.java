@@ -30,6 +30,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+
+        // Exclude actuator endpoints (Prometheus, health, metrics)
+        if (path.startsWith("/actuator")) {
+            return true;
+        }
+
+        // Exclude Swagger/OpenAPI documentation endpoints
+        if (path.startsWith("/swagger-ui") ||
+            path.startsWith("/v3/api-docs") ||
+            path.startsWith("/swagger-resources") ||
+            path.startsWith("/webjars")) {
+            return true;
+        }
+
+        // Exclude public authentication endpoints
+        if (path.equals("/api/auth/register") ||
+            path.equals("/api/auth/login") ||
+            path.equals("/api/auth/verify-email") ||
+            path.equals("/api/auth/resend-verification") ||
+            path.startsWith("/oauth2/authorization") ||
+            path.equals("/login/oauth2/code/google") ||
+            path.equals("/.well-known/jwks.json")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                 HttpServletResponse response,
                                 FilterChain filterChain) throws ServletException, IOException {
