@@ -2,10 +2,10 @@
 -- CityHelp Auth Service - Users Table
 -- Created: 2025-12-02
 
--- Create enum types
-CREATE TYPE oauth_provider AS ENUM ('LOCAL', 'GOOGLE');
-CREATE TYPE user_status AS ENUM ('PENDING_VERIFICATION', 'ACTIVE', 'DELETED', 'SUSPENDED');
-CREATE TYPE user_role AS ENUM ('USER', 'ADMIN');
+-- Enum values stored as VARCHAR (Hibernate manages enum conversion)
+-- oauth_provider: 'LOCAL', 'GOOGLE'
+-- user_status: 'PENDING_VERIFICATION', 'ACTIVE', 'DELETED', 'SUSPENDED'
+-- user_role: 'USER', 'ADMIN'
 
 -- Create users table
 CREATE TABLE users (
@@ -15,10 +15,10 @@ CREATE TABLE users (
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255),  -- NULL for OAuth2 users
-    oauth_provider oauth_provider NOT NULL DEFAULT 'LOCAL',
+    oauth_provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    status user_status NOT NULL DEFAULT 'PENDING_VERIFICATION',
-    role user_role NOT NULL DEFAULT 'USER',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING_VERIFICATION',
+    role VARCHAR(20) NOT NULL DEFAULT 'USER',
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP,
     last_login_at TIMESTAMP

@@ -34,7 +34,10 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;
-    
+    private Integer failedLoginAttempts = 0;
+    private LocalDateTime lockedUntil;
+    private LocalDateTime lastFailedLoginAttempt;
+
     // Default constructor
     public User() {}
     
@@ -103,7 +106,16 @@ public class User {
     
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
-    
+
+    public Integer getFailedLoginAttempts() { return failedLoginAttempts; }
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+
+    public LocalDateTime getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+
+    public LocalDateTime getLastFailedLoginAttempt() { return lastFailedLoginAttempt; }
+    public void setLastFailedLoginAttempt(LocalDateTime lastFailedLoginAttempt) { this.lastFailedLoginAttempt = lastFailedLoginAttempt; }
+
     // Business logic methods (pure Java)
     public String getFullName() {
         
@@ -127,9 +139,16 @@ public class User {
     }
     
     public boolean canLogin() {
-        return UserStatus.ACTIVE.equals(status) && isVerified;
+        return UserStatus.ACTIVE.equals(status) && isVerified && !isLocked();
     }
-    
+
+    public boolean isLocked() {
+        if (lockedUntil == null) {
+            return false;
+        }
+        return LocalDateTime.now().isBefore(lockedUntil);
+    }
+
     public boolean needsEmailVerification() {
         return isLocalUser() && !isVerified;
     }

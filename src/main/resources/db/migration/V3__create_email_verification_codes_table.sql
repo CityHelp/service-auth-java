@@ -9,6 +9,7 @@ CREATE TABLE email_verification_codes (
     code VARCHAR(6) NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_used BOOLEAN NOT NULL DEFAULT FALSE,
     attempts INT NOT NULL DEFAULT 0,
 

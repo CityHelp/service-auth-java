@@ -58,6 +58,15 @@ public class UserEntity extends AuditableEntity {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    @Column(name = "failed_login_attempts", nullable = false)
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
+    @Column(name = "last_failed_login_attempt")
+    private LocalDateTime lastFailedLoginAttempt;
+
     // Default constructor required by JPA
     public UserEntity() {}
 
@@ -76,6 +85,9 @@ public class UserEntity extends AuditableEntity {
         this.setCreatedAt(user.getCreatedAt());
         this.setUpdatedAt(user.getUpdatedAt());
         this.lastLoginAt = user.getLastLoginAt();
+        this.failedLoginAttempts = user.getFailedLoginAttempts();
+        this.lockedUntil = user.getLockedUntil();
+        this.lastFailedLoginAttempt = user.getLastFailedLoginAttempt();
     }
 
     // Getters and setters
@@ -112,6 +124,15 @@ public class UserEntity extends AuditableEntity {
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
 
+    public Integer getFailedLoginAttempts() { return failedLoginAttempts; }
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+
+    public LocalDateTime getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+
+    public LocalDateTime getLastFailedLoginAttempt() { return lastFailedLoginAttempt; }
+    public void setLastFailedLoginAttempt(LocalDateTime lastFailedLoginAttempt) { this.lastFailedLoginAttempt = lastFailedLoginAttempt; }
+
     /**
      * Convert to domain model (pure Java).
      *
@@ -132,6 +153,9 @@ public class UserEntity extends AuditableEntity {
         user.setCreatedAt(getCreatedAt());
         user.setUpdatedAt(getUpdatedAt());
         user.setLastLoginAt(lastLoginAt);
+        user.setFailedLoginAttempts(failedLoginAttempts);
+        user.setLockedUntil(lockedUntil);
+        user.setLastFailedLoginAttempt(lastFailedLoginAttempt);
         return user;
     }
 

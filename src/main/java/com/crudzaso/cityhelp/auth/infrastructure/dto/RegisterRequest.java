@@ -30,8 +30,8 @@ public class RegisterRequest {
 
     @NotBlank(message = "Contraseña es requerida")
     @Size(min = 8, max = 128, message = "Contraseña debe tener entre 8 y 128 caracteres")
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
-             message = "Contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).{8,128}$",
+             message = "Contraseña debe tener mínimo 8 caracteres con mayúscula, minúscula, número y carácter especial")
     @JsonProperty("password")
     private String password;
 

@@ -9,6 +9,7 @@ CREATE TABLE refresh_tokens (
     user_id BIGINT NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_revoked BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- Foreign key constraint

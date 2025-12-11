@@ -12,6 +12,7 @@ import com.crudzaso.cityhelp.auth.application.LoginUserUseCase;
 import com.crudzaso.cityhelp.auth.application.VerifyEmailUseCase;
 import com.crudzaso.cityhelp.auth.application.RefreshTokenUseCase;
 import com.crudzaso.cityhelp.auth.application.LogoutUserUseCase;
+import com.crudzaso.cityhelp.auth.application.ChangePasswordUseCase;
 import com.crudzaso.cityhelp.auth.application.exception.UserAlreadyExistsException;
 import com.crudzaso.cityhelp.auth.application.exception.InvalidCredentialsException;
 import com.crudzaso.cityhelp.auth.application.exception.InvalidVerificationCodeException;
@@ -54,6 +55,7 @@ public class AuthController {
     private final VerifyEmailUseCase verifyEmailUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUserUseCase logoutUserUseCase;
+    private final ChangePasswordUseCase changePasswordUseCase;
     private final JwtTokenProvider jwtTokenProvider;
 
     public AuthController(
@@ -65,6 +67,7 @@ public class AuthController {
             VerifyEmailUseCase verifyEmailUseCase,
             RefreshTokenUseCase refreshTokenUseCase,
             LogoutUserUseCase logoutUserUseCase,
+            ChangePasswordUseCase changePasswordUseCase,
             JwtTokenProvider jwtTokenProvider
     ) {
         this.userRepository = userRepository;
@@ -75,6 +78,7 @@ public class AuthController {
         this.verifyEmailUseCase = verifyEmailUseCase;
         this.refreshTokenUseCase = refreshTokenUseCase;
         this.logoutUserUseCase = logoutUserUseCase;
+        this.changePasswordUseCase = changePasswordUseCase;
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
@@ -634,6 +638,64 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(AuthResponse.error("Error al eliminar cuenta: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Change user password.
+     * Requires valid JWT token in Authorization header.
+     * Validates current password before allowing change.
+     */
+    @Operation(
+            summary = "Change password",
+            description = "Changes the password for the authenticated user. Requires current password verification. Requires valid JWT token.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Password changed successfully",
+                    content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid or expired token, authentication required",
+                    content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Password change failed",
+                    content = @Content(schema = @Schema(implementation = AuthResponse.class))
+            )
+    })
+    @PutMapping("/change-password")
+    public ResponseEntity<AuthResponse> changePassword(
+            @Parameter(description = "JWT token in format 'Bearer {token}'", required = true)
+            @RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        try {
+            // Extract userId from JWT token
+            Long userId = extractUserIdFromAuthHeader(authHeader);
+
+            // Execute change password use case
+            changePasswordUseCase.execute(userId, request.getCurrentPassword(), request.getNewPassword());
+
+            return ResponseEntity.ok()
+                    .body(AuthResponse.success("Contraseña cambiada exitosamente"));
+
+        } catch (InvalidCredentialsException e) {
+            return ResponseEntity.badRequest()
+                    .body(AuthResponse.error(e.getMessage()));
+        } catch (InvalidTokenException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(AuthResponse.error("Token inválido: " + e.getMessage()));
+        } catch (ExpiredTokenException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(AuthResponse.error("Token expirado"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(AuthResponse.error("Error al cambiar contraseña: " + e.getMessage()));
         }
     }
 }

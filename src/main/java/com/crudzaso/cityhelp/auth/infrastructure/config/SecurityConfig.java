@@ -100,6 +100,9 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/verify-email").permitAll()
                     .requestMatchers("/api/auth/resend-verification").permitAll()
                     .requestMatchers("/api/auth/refresh").permitAll()
+                    .requestMatchers("/api/auth/forgot-password").permitAll()
+                    .requestMatchers("/api/auth/reset-password").permitAll()
+                    .requestMatchers("/api/auth/validate-reset-token").permitAll()
                     .requestMatchers("/oauth2/**").permitAll()
                     .requestMatchers("/login/oauth2/code/google").permitAll()
                     .requestMatchers("/.well-known/jwks.json").permitAll()
@@ -114,6 +117,9 @@ public class SecurityConfig {
                     .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/swagger-resources/**").permitAll()
                     .requestMatchers("/webjars/**").permitAll()
+
+                    // Admin endpoints require authentication
+                    .requestMatchers("/api/admin/**").authenticated()
 
                     // All other endpoints require authentication
                     .anyRequest().authenticated()
