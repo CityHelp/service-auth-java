@@ -204,9 +204,31 @@ management:
     export:
       prometheus:
         enabled: true
+        step: 1m
     tags:
       application: ${spring.application.name}
       environment: ${ENVIRONMENT:development}
+    # Distribution settings for histograms and percentiles
+    distribution:
+      percentiles-histogram:
+        auth.login.duration: true
+        auth.email.verification.duration: true
+        auth.password.reset.duration: true
+        auth.token.refresh.duration: true
+        auth.registration.duration: true
+      # SLO (Service Level Objectives) for timers in milliseconds
+      slo:
+        auth.login.duration: 100,200,500,1000
+        auth.email.verification.duration: 100,200,500,1000
+        auth.password.reset.duration: 100,200,500,1000
+        auth.token.refresh.duration: 50,100,200,500
+        auth.registration.duration: 100,200,500,1000
+    # Enable detailed JVM metrics
+    enable:
+      jvm: true
+      process: true
+      system: true
+      logback: true
 
 # SpringDoc OpenAPI Configuration (Swagger)
 springdoc:
