@@ -37,7 +37,7 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             # Pull latest image
-            docker pull ghcr.io/${{ github.repository }}:latest
+            docker pull ghcr.io/${{ github.repository | lowercase }}:latest
 
             # Stop and remove old container
             docker stop cityhelp-auth || true
@@ -57,7 +57,7 @@ EOF
               -p 8001:8001 \
               --env-file /app/cityhelp/.env \
               -v /app/cityhelp/logs:/app/logs \
-              ghcr.io/${{ github.repository }}:latest
+              ghcr.io/${{ github.repository | lowercase }}:latest
 
             # Wait for service to be ready
             echo "Waiting for service to be ready..."
