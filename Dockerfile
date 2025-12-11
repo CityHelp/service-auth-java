@@ -27,8 +27,11 @@ RUN addgroup -g 1001 -S cityhelp && \
 # Copy JAR from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Create directory for logs
-RUN mkdir -p /app/logs && chown -R cityhelp:cityhelp /app
+# Create directory for logs with proper permissions
+RUN mkdir -p /app/logs && \
+    chown -R cityhelp:cityhelp /app && \
+    chmod 755 /app && \
+    chmod 775 /app/logs
 
 # Switch to non-root user
 USER cityhelp
