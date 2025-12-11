@@ -34,7 +34,7 @@ jobs:
             echo "Starting deployment..."
 
             # Login to GHCR
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             # Pull latest image
             docker pull ghcr.io/${{ github.repository }}:latest
