@@ -24,7 +24,9 @@
 - [Database](#database)
 - [Security](#security)
 - [Testing](#testing)
+- [CI/CD Pipeline](#cicd-pipeline)
 - [Docker Deployment](#docker-deployment)
+- [Render Deployment](#render-deployment)
 - [Production Deployment](#production-deployment)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -35,6 +37,8 @@
 ## Overview
 
 **CityHelp Auth Service** is a centralized authentication and authorization server built with Spring Boot that serves as the single source of truth for user authentication across the CityHelp ecosystem. The service provides JWT-based authentication with support for both traditional email/password login and OAuth2 social authentication (Google).
+
+The service is currently deployed and running in production on Render (https://service-auth-java.onrender.com) with an external PostgreSQL database for high availability and multi-service integration.
 
 ### Key Responsibilities
 
@@ -95,11 +99,13 @@ This service is part of a multi-platform architecture where:
 - **AAA Pattern**: Arrange-Act-Assert pattern for clarity and maintainability
 
 ### Deployment & CI/CD
-- **GitHub Actions Workflows**: CI (build/test), Publish (GHCR), Deploy (VPS)
+- **GitHub Actions Workflows**: CI (build/test), Publish (GHCR), Auto-deploy to Render
+- **Render Production Deployment**: LIVE on Render with zero-downtime deployments
 - **Multi-Stage Docker Build**: Optimized image size with separated build/runtime
 - **Health Probes**: Kubernetes-compatible liveness and readiness probes
 - **Environment-Based Configuration**: Flexible configuration via environment variables
 - **Automated Migrations**: Flyway runs migrations automatically on startup
+- **External Database Support**: Compatible with external PostgreSQL databases for multi-service integration
 
 ---
 
@@ -231,7 +237,20 @@ cd service-auth-java
 
 ### 2. Database Setup
 
-Create PostgreSQL database and user:
+The project now uses an **external PostgreSQL database**. You have two options:
+
+#### Option A: Development with External Database (Recommended)
+
+Use the external database credentials provided:
+
+```bash
+# Verify connection (requires psql installed)
+PGPASSWORD="[DB_PASSWORD]" psql -h [DB_HOST] -p [DB_PORT] -U [DB_USERNAME] -d [DB_NAME] -c "SELECT version();"
+```
+
+#### Option B: Local Development with Docker
+
+Create local PostgreSQL database and user:
 
 ```sql
 -- Connect to PostgreSQL as superuser
@@ -249,6 +268,11 @@ GRANT ALL ON SCHEMA public TO auth_service_user;
 
 -- Exit
 \q
+```
+
+Or use Docker Compose:
+```bash
+docker-compose up postgres redis
 ```
 
 ### 3. Environment Configuration
@@ -284,11 +308,23 @@ Create a `.env` file in the project root with the following variables:
 #### Database Configuration
 
 ```bash
-# PostgreSQL Database
-DB_URL=jdbc:postgresql://localhost:5432/cityhelp_auth
-DB_USERNAME=auth_service_user
+# PostgreSQL Database - External (Production)
+DB_HOST=188.245.114.222
+DB_PORT=5433
+DB_NAME=cityhelp
+DB_USERNAME=root
 DB_PASSWORD=[YOUR_DB_PASSWORD]
+
+# For local development with Docker (alternative)
+# DB_HOST=localhost
+# DB_PORT=5432
+# DB_NAME=cityhelp_auth
+# DB_USERNAME=auth_service_user
+# DB_PASSWORD=[YOUR_LOCAL_DB_PASSWORD]
 ```
+
+**Note**: The application automatically constructs the JDBC URL from these variables:
+`jdbc:postgresql://{DB_HOST}:{DB_PORT}/{DB_NAME}`
 
 #### JWT Configuration
 
@@ -351,8 +387,32 @@ REDIS_PASSWORD=
 SERVER_PORT=8001
 
 # Active Profile (dev, staging, prod)
-SPRING_PROFILES_ACTIVE=dev
+SPRING_PROFILES_ACTIVE=prod
 ```
+
+### GitHub Secrets Configuration
+
+GitHub Secrets are encrypted variables used by CI/CD workflows. Configure these in your repository:
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+```
+# Database Credentials (for optional integration testing against real database)
+DB_HOST=188.245.114.222
+DB_PORT=5433
+DB_NAME=cityhelp
+DB_USERNAME=root
+DB_PASSWORD=[YOUR_DB_PASSWORD]
+
+# Additional secrets for production deployment (as needed)
+JWT_RSA_PRIVATE_KEY=[BASE64_ENCODED_PRIVATE_KEY]
+JWT_RSA_PUBLIC_KEY=[BASE64_ENCODED_PUBLIC_KEY]
+GOOGLE_CLIENT_SECRET=[YOUR_GOOGLE_SECRET]
+SMTP_PASSWORD=[YOUR_SMTP_APP_PASSWORD]
+REDIS_PASSWORD=[YOUR_REDIS_PASSWORD]
+```
+
+**Note**: These secrets are used in `.github/workflows/ci.yml` for optional testing against the real database via the `${{ secrets.VARIABLE_NAME }}` syntax.
 
 ### Google OAuth2 Setup
 
@@ -615,7 +675,17 @@ This endpoint is used by external services to verify JWT signatures without acce
 
 ## Database
 
-### Schema
+### Current Configuration
+
+The service uses an **external PostgreSQL database** hosted at `188.245.114.222:5433` with the database name `cityhelp`. This allows multiple services to share the same database while maintaining separate schemas and access controls.
+
+**Production Database Details:**
+- Host: `188.245.114.222`
+- Port: `5433`
+- Database: `cityhelp`
+- User: `root` (or use specific role for read-only access)
+
+### Schema Management
 
 The database schema is managed by **Flyway** migrations located in `src/main/resources/db/migration/`.
 
@@ -681,10 +751,12 @@ mvn flyway:validate
 ```
 
 **Production Considerations:**
-- Flyway validates migrations on startup (`validate-on-migrate: true`)
+- Flyway validates migrations on startup (`validate-on-migrate: false` for external database compatibility)
 - Migrations are applied before application starts
 - No downtime migration strategy (backwards-compatible changes)
 - All migrations are idempotent and reversible
+- External database mode: `validate-on-migrate` is disabled to allow compatibility with existing database schemas that may have been modified outside of the application
+- If database migration checksums don't match, Flyway will skip validation and continue with migration
 
 ---
 
@@ -1090,11 +1162,18 @@ Deploy Pipeline (deploy.yml) - On main branch
 3. **Verify Project** - Check pom.xml and Dockerfile exist
 4. **Build** - `mvn clean package -DskipTests`
 5. **Run Tests** - Execute all 418 tests
-   - PostgreSQL 15 service for database tests
+   - PostgreSQL 15 service for database tests (local test database)
    - Redis 7 service for cache/rate limit tests
    - Connection pool configured for concurrent tests
+   - Optional: External database testing via GitHub Secrets (if provided)
 6. **Generate Reports** - JUnit XML and JaCoCo coverage
 7. **Upload Artifacts** - Test reports and coverage (30-day retention)
+
+**GitHub Secrets Integration (Optional):**
+The CI pipeline can optionally run integration tests against the real external database if the following secrets are configured:
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
+
+These are passed as environment variables but CI uses local test database by default. To test against production database, modify the test configuration.
 
 **Environment:**
 - Ubuntu latest
@@ -1178,43 +1257,53 @@ Coverage: 82.5%+
 
 ### GitHub Secrets Required
 
-Configure these secrets in repository Settings → Secrets → Actions:
+Configure these secrets in repository **Settings → Secrets and variables → Actions**:
 
+#### Database Credentials (Required for integration tests and external DB)
 ```
-DB_HOST=             # Render PostgreSQL hostname
-DB_PORT=5432         # Database port
-DB_NAME=cityhelp_auth
-DB_USERNAME=         # Database user
-DB_PASSWORD=         # Database password (sensitive)
+DB_HOST=188.245.114.222      # External PostgreSQL hostname
+DB_PORT=5433                  # Database port
+DB_NAME=cityhelp              # Database name
+DB_USERNAME=root              # Database user
+DB_PASSWORD=                  # Database password (sensitive - store securely!)
+```
 
-REDIS_HOST=          # Redis Labs hostname
-REDIS_PORT=6379
-REDIS_PASSWORD=      # Redis password (sensitive)
+#### JWT & Security (If using external RSA keys)
+```
+JWT_RSA_PRIVATE_KEY=          # Base64-encoded RSA private key (optional)
+JWT_RSA_PUBLIC_KEY=           # Base64-encoded RSA public key (optional)
+JWT_KEY_ID=cityhelp-key-1     # JWKS key ID
+```
 
-JWT_RSA_PRIVATE_KEY= # Base64-encoded RSA private key
-JWT_RSA_PUBLIC_KEY=  # Base64-encoded RSA public key
-JWT_KEY_ID=          # JWKS key ID
-
-GOOGLE_CLIENT_ID=    # Google OAuth2 client ID
-GOOGLE_CLIENT_SECRET= # Google OAuth2 secret (sensitive)
+#### OAuth2 & Email (Optional for CI)
+```
+GOOGLE_CLIENT_ID=             # Google OAuth2 client ID (for tests)
+GOOGLE_CLIENT_SECRET=         # Google OAuth2 secret (sensitive)
 
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USERNAME=       # Email address
-SMTP_PASSWORD=       # App-specific password (sensitive)
-SMTP_FROM_EMAIL=     # Sender email
-SMTP_FROM_NAME=      # Sender name
-
-APP_BASE_URL=        # Production URL (https://...)
-OAUTH2_REDIRECT_URI= # OAuth2 callback URL
-FRONTEND_URL=        # Mobile/web app URL
-CORS_ALLOWED_ORIGINS= # CORS-allowed domains
-
-VPS_HOST=            # VPS IP or hostname
-VPS_USER=            # SSH user
-VPS_SSH_KEY=         # SSH private key (secret)
-VPS_SSH_PORT=22      # SSH port
+SMTP_USERNAME=                # Email address
+SMTP_PASSWORD=                # App-specific password (sensitive)
+SMTP_FROM_EMAIL=              # Sender email
+SMTP_FROM_NAME=               # Sender name
 ```
+
+#### Redis (Optional)
+```
+REDIS_HOST=                   # Redis hostname
+REDIS_PORT=6379
+REDIS_PASSWORD=               # Redis password (if required)
+```
+
+#### Deployment & Monitoring (Optional)
+```
+APP_BASE_URL=                 # Production URL (https://...)
+OAUTH2_REDIRECT_URI=          # OAuth2 callback URL
+FRONTEND_URL=                 # Mobile/web app URL
+CORS_ALLOWED_ORIGINS=         # CORS-allowed domains
+```
+
+**Security Note**: Store sensitive credentials (DB_PASSWORD, SMTP_PASSWORD, etc.) securely in GitHub Secrets. Never commit them to the repository.
 
 ### Deployment Checklist
 
@@ -1345,6 +1434,175 @@ docker-compose logs -f auth-service
 # Stop all services
 docker-compose down
 ```
+
+---
+
+## Render Deployment
+
+Render is the production deployment platform for this service. The application is automatically deployed to Render when code is pushed to the main branch.
+
+### Current Production Configuration
+
+The service is deployed on Render with the following details:
+
+**Service Information:**
+- Service ID: srv-d4u96sogjchc73c4ff10
+- Status: LIVE
+- Port: 8001
+- Region: Oregon (configurable)
+- Plan: Starter or higher
+
+**Production Database:**
+- External PostgreSQL database at 188.245.114.222:5433
+- Database: cityhelp
+- User: root (with appropriate privileges)
+
+**Production URL:**
+```
+https://service-auth-java.onrender.com
+```
+
+**Key Endpoints:**
+- Health: https://service-auth-java.onrender.com/actuator/health
+- Metrics: https://service-auth-java.onrender.com/actuator/metrics
+- JWKS: https://service-auth-java.onrender.com/.well-known/jwks.json
+- Swagger: https://service-auth-java.onrender.com/swagger-ui.html
+
+### Deployment Process
+
+The deployment is fully automated through GitHub Actions:
+
+1. **Code Push to Main Branch**
+   ```
+   git push origin main
+   ```
+
+2. **GitHub Actions Triggers**
+   - CI Pipeline (ci.yml): Tests all code changes
+   - Publish Pipeline (publish.yml): Builds and pushes Docker image to GHCR
+   - Deploy notification triggers Render redeploy
+
+3. **Render Auto-Deployment**
+   - Render detects new container image in GitHub Container Registry
+   - Pulls latest image (ghcr.io/cityhelp/service-auth-java:latest)
+   - Stops old container gracefully
+   - Starts new container with updated environment variables
+   - Runs health checks to verify deployment
+   - Updates DNS to point to new instance (zero downtime deployment)
+
+### Environment Variables in Render
+
+Configure these environment variables in Render dashboard (Settings → Environment):
+
+```bash
+# Application Configuration
+SPRING_PROFILES_ACTIVE=prod
+SERVER_PORT=8001
+
+# Database Configuration
+DB_HOST=188.245.114.222
+DB_PORT=5433
+DB_NAME=cityhelp
+DB_USERNAME=root
+DB_PASSWORD=[Your_DB_Password]
+
+# Redis Configuration
+REDIS_HOST=[Your_Redis_Host]
+REDIS_PORT=11711
+REDIS_PASSWORD=[Your_Redis_Password]
+
+# OAuth2 Configuration
+GOOGLE_CLIENT_ID=[Your_Google_Client_ID]
+GOOGLE_CLIENT_SECRET=[Your_Google_Client_Secret]
+
+# Email Configuration (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=[Your_SMTP_Email]
+SMTP_PASSWORD=[Your_App_Password]
+EMAIL_FROM=[Sender_Email]
+EMAIL_FROM_NAME=CityHelp Auth Service
+```
+
+### Monitoring Render Deployment
+
+Access deployment logs and monitoring in Render dashboard:
+
+**View Logs:**
+```
+Dashboard → service-auth-java → Logs → All
+```
+
+**Check Deployment Status:**
+```
+Dashboard → service-auth-java → Deployments
+```
+
+**Monitor Service Health:**
+```
+curl https://service-auth-java.onrender.com/actuator/health
+```
+
+**View Application Metrics:**
+```
+curl https://service-auth-java.onrender.com/actuator/metrics
+```
+
+### Manual Deployment Trigger
+
+To manually trigger a deployment on Render:
+
+1. Go to Render dashboard → service-auth-java service
+2. Click "Manual Deploy" or "Deploy latest" button
+3. Monitor "Deployments" tab for progress
+4. Verify health endpoint returns UP status
+
+Alternatively, update any environment variable to automatically trigger a redeploy.
+
+### Rollback Procedure
+
+If a deployment fails or causes issues:
+
+1. Go to Render dashboard → service-auth-java → Deployments
+2. Find the previous successful deployment in the history
+3. Click the three dots menu next to it
+4. Select "Redeploy"
+5. Monitor logs in Logs tab to verify successful rollback
+
+### Common Render Issues and Solutions
+
+**Issue: Service keeps restarting**
+
+Causes and solutions:
+- Check application logs for stack traces
+- Verify database connection credentials are correct
+- Ensure all required environment variables are set
+- Check if Render resource limits are exceeded (memory/CPU)
+- Review Flyway migration logs for database schema errors
+
+**Issue: Health checks failing (502 Bad Gateway)**
+
+Check:
+- /actuator/health endpoint is responding with status UP
+- Database connectivity from Render to external database
+- Redis connection if configured
+- Network firewall rules allow outbound connections
+
+**Issue: Slow startup or timeout**
+
+Note:
+- Initial startup may take 30-60 seconds
+- Flyway migrations run on startup and consume time
+- Container may be on smaller plan with limited resources
+- Subsequent deployments are faster (warm start)
+
+**Issue: Environment variables not updating**
+
+Solution:
+- Set variables in Render dashboard → Settings → Environment
+- Click "Save" button to persist changes
+- Trigger manual redeploy to apply changes
+- Verify in Logs that variables are loaded
 
 ---
 
