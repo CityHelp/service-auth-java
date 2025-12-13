@@ -1,6 +1,7 @@
 package com.crudzaso.cityhelp.auth.infrastructure.dto;
 
 import com.crudzaso.cityhelp.auth.domain.model.User;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * Data Transfer Object for user authentication responses.
@@ -11,9 +12,26 @@ import com.crudzaso.cityhelp.auth.domain.model.User;
  * @param error Optional error message if operation failed
  * @param user Optional user data (for successful operations)
  */
+@Schema(
+        name = "UserResponse",
+        description = "Response containing user information after successful authentication or user profile query"
+)
 public class UserResponse {
+    @Schema(
+            description = "Whether the operation was successful",
+            example = "true"
+    )
     private boolean success;
+
+    @Schema(
+            description = "Response message describing the operation result",
+            example = "User retrieved successfully"
+    )
     private String message;
+
+    @Schema(
+            description = "User object containing profile information (only present on successful operations)"
+    )
     private User user;
 
     // Constructor for successful operations

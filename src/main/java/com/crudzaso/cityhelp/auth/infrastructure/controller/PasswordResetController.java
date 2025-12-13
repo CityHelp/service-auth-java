@@ -10,6 +10,11 @@ import com.crudzaso.cityhelp.auth.infrastructure.dto.AuthResponse;
 import com.crudzaso.cityhelp.auth.infrastructure.service.MetricsService;
 import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -38,9 +43,35 @@ public class PasswordResetController {
         this.metricsService = metricsService;
     }
 
-    @Operation(summary = "Request password reset")
+    @Operation(
+            summary = "Request password reset",
+            description = "Initiates password reset process by sending a reset link to the user's email. " +
+                    "For security reasons, this endpoint returns success regardless of whether the email exists " +
+                    "to prevent email enumeration attacks. If the email exists, user receives reset link; " +
+                    "if not, no email is sent."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Password reset request processed successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request format"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
     @PostMapping("/forgot-password")
-    public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<AuthResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
         metricsService.recordPasswordResetRequest();
         try {
             requestPasswordResetUseCase.execute(request.getEmail());
@@ -54,9 +85,34 @@ public class PasswordResetController {
         }
     }
 
-    @Operation(summary = "Reset password with token")
+    @Operation(
+            summary = "Reset password with token",
+            description = "Completes the password reset process by accepting a valid reset token and new password. " +
+                    "The reset token is obtained from the password reset email link. " +
+                    "Password must be strong: minimum 8 characters with uppercase, lowercase, digit, and special character."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Password reset successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid or expired reset token, or invalid password format"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
     @PostMapping("/reset-password")
-    public ResponseEntity<AuthResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<AuthResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
         Timer.Sample timerSample = metricsService.startPasswordResetTimer();
         try {
             resetPasswordUseCase.execute(request.getToken(), request.getNewPassword());
@@ -82,9 +138,40 @@ public class PasswordResetController {
         }
     }
 
-    @Operation(summary = "Validate reset token")
+    @Operation(
+            summary = "Validate reset token",
+            description = "Validates whether a password reset token is valid and not expired. " +
+                    "Used by frontend to check token status before allowing user to proceed with password reset. " +
+                    "Reset tokens expire after 24 hours."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Token is valid",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Token is invalid or expired"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
     @PostMapping("/validate-reset-token")
-    public ResponseEntity<AuthResponse> validateResetToken(@RequestParam String token) {
+    public ResponseEntity<AuthResponse> validateResetToken(
+            @Parameter(
+                    name = "token",
+                    description = "Password reset token from the reset email link",
+                    required = true,
+                    example = "550e8400-e29b-41d4-a716-446655440000"
+            )
+            @RequestParam String token
+    ) {
         boolean isValid = validateResetTokenUseCase.execute(token);
 
         if (isValid) {

@@ -1,6 +1,13 @@
 package com.crudzaso.cityhelp.auth.infrastructure.controller;
 
 import com.crudzaso.cityhelp.auth.infrastructure.security.RsaKeyProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -24,6 +31,9 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/.well-known")
+@Tag(name = "JWKS - Public Key Discovery", description = "JSON Web Key Set endpoint for external service JWT verification. " +
+        "Used by external services (C#, Python, Node.js, etc.) to retrieve public keys for verifying JWTs issued by the Auth Service. " +
+        "Implements RFC 7517 (JSON Web Key) standard.")
 public class JwksController {
 
     private static final Logger logger = LoggerFactory.getLogger(JwksController.class);
@@ -54,6 +64,32 @@ public class JwksController {
      * @return JWKS response with RSA public key
      */
     @GetMapping(value = "/jwks.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+            summary = "Get JSON Web Key Set (JWKS)",
+            description = "Retrieves the JSON Web Key Set containing RSA public keys used to verify JWTs issued by the Auth Service. " +
+                    "This endpoint is used by external services (C#, Python, Node.js, etc.) to validate JWT signatures. " +
+                    "The response follows RFC 7517 JSON Web Key format with Base64 URL-encoded RSA components. " +
+                    "\n\nUsage Example (C# service): Use HttpClient to fetch this endpoint, extract public key 'n' and 'e', " +
+                    "and use them to verify JWT signatures using JOSE/JWT libraries."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "JWKS response with public keys",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(
+                                    description = "JSON Web Key Set containing RSA public keys",
+                                    example = "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\"," +
+                                            "\"kid\":\"cityhelp-key-1\",\"n\":\"xGOr-H7A-PWnP5...\",\"e\":\"AQAB\"}]}"
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error - Unable to generate JWKS response"
+            )
+    })
     public ResponseEntity<Map<String, Object>> getJwks() {
         logger.info("JWKS endpoint called - providing public key for external service verification");
 

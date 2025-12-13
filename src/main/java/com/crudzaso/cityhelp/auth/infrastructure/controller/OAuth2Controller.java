@@ -1,5 +1,6 @@
 package com.crudzaso.cityhelp.auth.infrastructure.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,9 @@ import org.springframework.web.bind.annotation.*;
 /**
  * OAuth2 Controller for Google authentication redirect.
  * Handles the OAuth2 redirect endpoint outside of /api/auth path.
+ *
+ * Note: This endpoint is NOT included in OpenAPI/Swagger documentation as it returns HTML,
+ * not JSON. It's a browser-facing endpoint for OAuth2 redirect flow.
  *
  * @author CityHelp Team
  */
@@ -22,12 +26,16 @@ public class OAuth2Controller {
      * Note: This endpoint is configured in application.yml as:
      * app.oauth2.redirect-uri=http://localhost:8001/oauth2/redirect
      *
+     * This endpoint is hidden from OpenAPI documentation since it returns HTML content,
+     * not REST API data. It's for browser-based OAuth2 flow only.
+     *
      * @param accessToken JWT access token
      * @param refreshToken JWT refresh token
      * @param error Error message if authentication failed
      * @return HTML page with tokens or error message
      */
     @GetMapping(value = "/oauth2/redirect", produces = MediaType.TEXT_HTML_VALUE)
+    @Hidden
     public ResponseEntity<String> oauth2RedirectPage(
             @RequestParam(required = false) String access_token,
             @RequestParam(required = false) String refresh_token,

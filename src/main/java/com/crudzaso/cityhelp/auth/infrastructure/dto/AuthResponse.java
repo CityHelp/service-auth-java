@@ -1,32 +1,68 @@
 package com.crudzaso.cityhelp.auth.infrastructure.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * Standard API response for authentication operations.
  * Follows English naming for technical code with Spanish user messages.
  */
+@Schema(
+        name = "AuthResponse",
+        description = "Authentication response containing JWT tokens and user information. Access token expires in 24 hours, refresh token in 7 days."
+)
 public class AuthResponse {
 
     @JsonProperty("success")
+    @Schema(
+            description = "Whether the authentication operation was successful",
+            example = "true"
+    )
     private boolean success;
 
     @JsonProperty("message")
+    @Schema(
+            description = "Response message describing the result of the operation",
+            example = "User logged in successfully"
+    )
     private String message;
 
     @JsonProperty("access_token")
+    @Schema(
+            description = "JWT access token (RS256 signed, expires in 24 hours). Include in Authorization header as 'Bearer {token}'",
+            example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ...",
+            pattern = "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+    )
     private String accessToken;
 
     @JsonProperty("refresh_token")
+    @Schema(
+            description = "Refresh token UUID (expires in 7 days). Use this with /api/auth/refresh endpoint to obtain new access token",
+            example = "550e8400-e29b-41d4-a716-446655440000",
+            format = "uuid"
+    )
     private String refreshToken;
 
     @JsonProperty("token_type")
+    @Schema(
+            description = "Token type (always 'Bearer' for JWT tokens)",
+            example = "Bearer",
+            defaultValue = "Bearer"
+    )
     private String tokenType;
 
     @JsonProperty("expires_in")
+    @Schema(
+            description = "Access token expiration time in seconds (86400 = 24 hours)",
+            example = "86400",
+            defaultValue = "86400"
+    )
     private long expiresIn;
 
     @JsonProperty("user")
+    @Schema(
+            description = "Authenticated user information"
+    )
     private UserInfo user;
 
     // Constructors
@@ -89,26 +125,62 @@ public class AuthResponse {
     /**
      * User information nested object for auth responses.
      */
+    @Schema(
+            name = "UserInfo",
+            description = "Authenticated user information embedded in authentication response"
+    )
     public static class UserInfo {
         @JsonProperty("uuid")
+        @Schema(
+                description = "User's unique UUID identifier",
+                example = "550e8400-e29b-41d4-a716-446655440000",
+                format = "uuid"
+        )
         private String uuid;
 
         @JsonProperty("first_name")
+        @Schema(
+                description = "User's first name",
+                example = "Juan"
+        )
         private String firstName;
 
         @JsonProperty("last_name")
+        @Schema(
+                description = "User's last name",
+                example = "Camilo"
+        )
         private String lastName;
 
         @JsonProperty("email")
+        @Schema(
+                description = "User's email address",
+                example = "juan.camilo@example.com",
+                format = "email"
+        )
         private String email;
 
         @JsonProperty("role")
+        @Schema(
+                description = "User's role (USER or ADMIN)",
+                example = "USER",
+                allowableValues = {"USER", "ADMIN"}
+        )
         private String role;
 
         @JsonProperty("is_verified")
+        @Schema(
+                description = "Whether the user's email has been verified",
+                example = "true"
+        )
         private boolean isVerified;
 
         @JsonProperty("oauth_provider")
+        @Schema(
+                description = "OAuth provider used for registration (LOCAL for email/password, GOOGLE for OAuth2)",
+                example = "LOCAL",
+                allowableValues = {"LOCAL", "GOOGLE"}
+        )
         private String oauthProvider;
 
         // Constructors

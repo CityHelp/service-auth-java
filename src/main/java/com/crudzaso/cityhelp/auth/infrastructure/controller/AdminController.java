@@ -4,6 +4,12 @@ import com.crudzaso.cityhelp.auth.domain.model.User;
 import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import com.crudzaso.cityhelp.auth.infrastructure.dto.AuthResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,9 +28,49 @@ public class AdminController {
         this.userRepository = userRepository;
     }
 
-    @Operation(summary = "Unlock user account")
+    @Operation(
+            summary = "Unlock user account",
+            description = "Admin endpoint to unlock a user account that has been locked due to too many failed login attempts. " +
+                    "Resets the failed login attempts counter and removes any temporary lock. " +
+                    "Requires ADMIN role."
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User account unlocked successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized - invalid or missing JWT token"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - user does not have ADMIN role"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
     @PostMapping("/users/{userId}/unlock")
-    public ResponseEntity<AuthResponse> unlockUser(@PathVariable Long userId) {
+    public ResponseEntity<AuthResponse> unlockUser(
+            @Parameter(
+                    name = "userId",
+                    description = "User ID to unlock",
+                    required = true,
+                    example = "1"
+            )
+            @PathVariable Long userId
+    ) {
         try {
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isEmpty()) {
@@ -53,9 +99,49 @@ public class AdminController {
         }
     }
 
-    @Operation(summary = "Get user lock status")
+    @Operation(
+            summary = "Get user lock status",
+            description = "Admin endpoint to check if a user account is locked and view failed login attempts. " +
+                    "Returns current lock status, number of failed attempts, and unlock time if applicable. " +
+                    "Requires ADMIN role."
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User lock status retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized - invalid or missing JWT token"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - user does not have ADMIN role"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
     @GetMapping("/users/{userId}/lock-status")
-    public ResponseEntity<AuthResponse> getUserLockStatus(@PathVariable Long userId) {
+    public ResponseEntity<AuthResponse> getUserLockStatus(
+            @Parameter(
+                    name = "userId",
+                    description = "User ID to check lock status",
+                    required = true,
+                    example = "1"
+            )
+            @PathVariable Long userId
+    ) {
         try {
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isEmpty()) {
