@@ -12,6 +12,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * Web configuration for CityHelp Auth Service.
  * Configures JSON serialization, CORS, and other web-related settings.
+ *
+ * CORS Configuration:
+ * - Development: http://localhost:* and http://127.0.0.1:*
+ * - Production: https://* (all HTTPS origins)
+ * - Allows Swagger UI to work in both local and production environments
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -26,8 +31,8 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*", "https://*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);
