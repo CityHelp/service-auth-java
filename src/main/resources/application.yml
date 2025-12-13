@@ -200,6 +200,8 @@ management:
   health:
     redis:
       enabled: false
+    mail:
+      enabled: false
     db:
       enabled: true
   metrics:
