@@ -78,11 +78,18 @@ jobs:
 
       - name: Run Tests
         env:
+          # Local test database (always used for CI)
           SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cityhelp_test
           SPRING_DATASOURCE_USERNAME: test_user
           SPRING_DATASOURCE_PASSWORD: test_password
           SPRING_REDIS_HOST: redis
           SPRING_REDIS_PORT: 6379
+          # External database credentials (optional, from GitHub Secrets)
+          EXTERNAL_DB_HOST: ${{ secrets.DB_HOST }}
+          EXTERNAL_DB_PORT: ${{ secrets.DB_PORT }}
+          EXTERNAL_DB_NAME: ${{ secrets.DB_NAME }}
+          EXTERNAL_DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          EXTERNAL_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           echo "Running unit and integration tests..."
           mvn test -Dmaven.test.failure.ignore=false \
