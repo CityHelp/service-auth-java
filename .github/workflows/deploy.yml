@@ -1,19 +1,12 @@
-name: Deploy to VPS
+name: Deploy to Render
 
 on:
-  workflow_run:
-    workflows: ["Publish to GHCR"]
-    types: [completed]
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'production'
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     environment: production
 
@@ -21,83 +14,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            set -e
-
-            echo "Starting deployment..."
-
-            # Login to GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-            # Pull latest image
-            docker pull ghcr.io/${{ github.repository | lowercase }}:latest
-
-            # Stop and remove old container
-            docker stop cityhelp-auth || true
-            docker rm cityhelp-auth || true
-
-            # Create/Update .env file
-            echo "Creating .env file from secrets..."
-            cat > /app/cityhelp/.env << 'EOF'
-${{ secrets.APP_ENV_VARS }}
-EOF
-            chmod 600 /app/cityhelp/.env
-
-            # Run new container
-            docker run -d \
-              --name cityhelp-auth \
-              --restart unless-stopped \
-              -p 8001:8001 \
-              --env-file /app/cityhelp/.env \
-              -v /app/cityhelp/logs:/app/logs \
-              ghcr.io/${{ github.repository | lowercase }}:latest
-
-            # Wait for service to be ready
-            echo "Waiting for service to be ready..."
-            sleep 15
-
-            # Health check
-            for i in {1..40}; do
-              echo "Health check attempt $i/40..."
-              if curl -s -f http://localhost:8001/actuator/health > /dev/null 2>&1; then
-                echo "Service is healthy"
-                curl -s http://localhost:8001/actuator/health | head -20
-                exit 0
-              fi
-              echo "Service not ready yet, waiting..."
-              sleep 3
-            done
-
-            echo "ERROR: Service failed to start after 120 seconds"
-            echo "Container logs:"
-            docker logs cityhelp-auth || true
-            echo "Container status:"
-            docker ps -a | grep cityhelp-auth || true
-            docker stop cityhelp-auth || true
-            exit 1
-
-      - name: Verify deployment
+      - name: Trigger Render deployment
         run: |
-          echo "Deployment completed successfully"
-          echo "Service URL: https://${{ secrets.VPS_HOST }}:8001"
-          echo "Health endpoint: https://${{ secrets.VPS_HOST }}:8001/actuator/health"
+          echo "Notifying Render of new commit..."
+          echo "Render automatically detects pushes to main branch"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo ""
+          echo "Render webhook will handle the deployment automatically"
+          echo "Monitor progress at: https://dashboard.render.com/"
 
-      - name: Post deployment cleanup
-        if: always()
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            echo "Cleaning up Docker resources..."
-            docker image prune -f --filters "dangling=true"
-            docker system prune -f --volumes
+      - name: Deployment notification
+        if: success()
+        run: |
+          echo "## Render Deployment Triggered" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Push to **main** branch detected" >> $GITHUB_STEP_SUMMARY
+          echo "📝 Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "👤 Author: **${{ github.actor }}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 **Render is now deploying your changes**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Monitor the deployment:" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: https://dashboard.render.com/" >> $GITHUB_STEP_SUMMARY
+          echo "- Service: service-auth-java" >> $GITHUB_STEP_SUMMARY
+          echo "- Health: https://service-auth-java.onrender.com/actuator/health" >> $GITHUB_STEP_SUMMARY

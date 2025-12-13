@@ -1,8 +1,7 @@
-name: Publish to GHCR
+name: Publish to GHCR (Optional)
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
