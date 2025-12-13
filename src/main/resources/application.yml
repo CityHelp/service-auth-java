@@ -244,6 +244,11 @@ springdoc:
     enabled: true
     operations-sorter: method
     tags-sorter: alpha
+    # Configure Swagger UI to use local API docs endpoint
+    url: /v3/api-docs
+    urls:
+      - name: CityHelp Auth Service
+        url: /v3/api-docs
   show-actuator: false
   info:
     title: CityHelp Auth Service API
