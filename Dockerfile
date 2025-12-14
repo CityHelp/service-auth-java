@@ -36,16 +36,16 @@ RUN mkdir -p /app/logs && \
 # Switch to non-root user
 USER cityhelp
 
-# Expose port
-EXPOSE 8001
+# Expose port (use $PORT for Render, fallback to 8001 for local)
+EXPOSE ${PORT:-8001}
 
-# Health check
+# Health check (use $PORT environment variable)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:8001/actuator/health || exit 1
+  CMD curl -f http://localhost:${PORT:-8001}/actuator/health || exit 1
 
-# Run application with active profile from environment variable
-ENTRYPOINT ["java", \
-    "-Djava.security.egd=file:/dev/./urandom", \
-    "-Dspring.profiles.active=${SPRING_PROFILE:prod}", \
-    "-jar", \
-    "app.jar"]
+# Run application with active profile and dynamic port
+ENTRYPOINT ["sh", "-c", "java \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Dspring.profiles.active=${SPRING_PROFILE:prod} \
+    -Dserver.port=${PORT:-8001} \
+    -jar app.jar"]

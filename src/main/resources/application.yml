@@ -2,7 +2,7 @@
 # Spring Boot 3.5.8 - Authorization Server
 
 server:
-  port: 8001
+  port: ${PORT:8001}
   servlet:
     context-path: /
 
@@ -130,7 +130,9 @@ app:
   oauth2:
     # Redirect URI after successful OAuth2 authentication
     # This is where users will be redirected with their tokens
-    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8001/oauth2/redirect}
+    # Production: https://service-auth-java.onrender.com/oauth2/redirect
+    # Development: http://localhost:8001/oauth2/redirect
+    redirect-uri: ${OAUTH2_REDIRECT_URI:https://service-auth-java.onrender.com/oauth2/redirect}
 
 # Custom CityHelp Properties (Legacy - migrating to app.jwt)
 cityhelp:
