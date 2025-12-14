@@ -38,6 +38,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /**
  * Authentication REST Controller for CityHelp Auth Service.
@@ -437,12 +438,12 @@ public class AuthController {
             // Generate new verification code
             String verificationCode = generateVerificationCode();
 
-            // Create and save new email verification code
+            // Create and save new email verification code (UTC timezone)
             EmailVerificationCode emailCode = new EmailVerificationCode();
             emailCode.setUserId(user.getId());
             emailCode.setCode(verificationCode);
-            emailCode.setExpiresAt(LocalDateTime.now().plusMinutes(15));
-            emailCode.setCreatedAt(LocalDateTime.now());
+            emailCode.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(15));
+            emailCode.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
             emailCode.setUsed(false);
             emailCode.setAttempts(0);
 

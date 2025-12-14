@@ -7,6 +7,7 @@ import com.crudzaso.cityhelp.auth.infrastructure.repository.jpa.PasswordResetTok
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 @Repository
@@ -20,13 +21,34 @@ public class PasswordResetTokenRepositoryImpl implements PasswordResetTokenRepos
 
     @Override
     public PasswordResetToken save(PasswordResetToken token) {
-        PasswordResetTokenEntity entity = new PasswordResetTokenEntity(
-            token.getUserId(),
-            token.getToken(),
-            token.getExpiresAt()
-        );
-        entity.setUsed(token.getUsed());
-        entity.setCreatedAt(token.getCreatedAt());
+        PasswordResetTokenEntity entity;
+
+        // If token has an ID, it's an update; otherwise, it's a new insert
+        if (token.getId() != null) {
+            entity = jpaRepository.findById(token.getId()).orElse(null);
+            if (entity != null) {
+                entity.setUsed(token.getUsed());
+                entity.setCreatedAt(token.getCreatedAt());
+            } else {
+                // Fallback: create new entity if not found by ID
+                entity = new PasswordResetTokenEntity(
+                    token.getUserId(),
+                    token.getToken(),
+                    token.getExpiresAt()
+                );
+                entity.setUsed(token.getUsed());
+                entity.setCreatedAt(token.getCreatedAt());
+            }
+        } else {
+            // New entity
+            entity = new PasswordResetTokenEntity(
+                token.getUserId(),
+                token.getToken(),
+                token.getExpiresAt()
+            );
+            entity.setUsed(token.getUsed());
+            entity.setCreatedAt(token.getCreatedAt());
+        }
 
         PasswordResetTokenEntity saved = jpaRepository.save(entity);
         return toDomainModel(saved);
@@ -45,7 +67,7 @@ public class PasswordResetTokenRepositoryImpl implements PasswordResetTokenRepos
 
     @Override
     public void deleteExpiredTokens() {
-        jpaRepository.deleteExpiredTokens(LocalDateTime.now());
+        jpaRepository.deleteExpiredTokens(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     private PasswordResetToken toDomainModel(PasswordResetTokenEntity entity) {

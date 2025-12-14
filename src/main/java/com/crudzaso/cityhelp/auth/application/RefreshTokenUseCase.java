@@ -8,6 +8,7 @@ import com.crudzaso.cityhelp.auth.domain.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -99,9 +100,9 @@ public class RefreshTokenUseCase {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUserId(userId);
         refreshToken.setToken(UUID.randomUUID().toString());
-        refreshToken.setExpiresAt(LocalDateTime.now().plusDays(expirationDays));
+        refreshToken.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(expirationDays));
         refreshToken.setRevoked(false);
-        refreshToken.setCreatedAt(LocalDateTime.now());
+        refreshToken.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         return refreshTokenRepository.save(refreshToken);
     }

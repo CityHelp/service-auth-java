@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -76,7 +77,7 @@ public class RegisterUserUseCase {
         user.setStatus(UserStatus.PENDING_VERIFICATION);
         user.setRole(UserRole.USER);
         user.setIsVerified(false);
-        user.setCreatedAt(LocalDateTime.now());
+        user.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         // Save user to repository
         User savedUser = userRepository.save(user);
@@ -84,12 +85,12 @@ public class RegisterUserUseCase {
         // Create email verification code
         String verificationCode = generateVerificationCode();
 
-        // Create and save email verification code
+        // Create and save email verification code (UTC timezone)
         EmailVerificationCode emailCode = new EmailVerificationCode();
         emailCode.setUserId(savedUser.getId());
         emailCode.setCode(verificationCode);
-        emailCode.setExpiresAt(LocalDateTime.now().plusMinutes(15));
-        emailCode.setCreatedAt(LocalDateTime.now());
+        emailCode.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(15));
+        emailCode.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
         emailCode.setUsed(false);
         emailCode.setAttempts(0);
 

@@ -1,6 +1,7 @@
 package com.crudzaso.cityhelp.auth.domain.model;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 public class PasswordResetToken {
 
@@ -19,7 +20,7 @@ public class PasswordResetToken {
         this.token = token;
         this.expiresAt = expiresAt;
         this.used = false;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     // Getters and Setters
@@ -72,11 +73,15 @@ public class PasswordResetToken {
     }
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        return LocalDateTime.now(ZoneOffset.UTC).isAfter(expiresAt);
+    }
+
+    public boolean isUsed() {
+        return used != null && used;
     }
 
     public boolean isValid() {
-        return !used && !isExpired();
+        return !isUsed() && !isExpired();
     }
 
     @Override

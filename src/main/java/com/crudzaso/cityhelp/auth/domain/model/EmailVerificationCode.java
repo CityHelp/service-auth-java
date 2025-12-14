@@ -1,6 +1,7 @@
 package com.crudzaso.cityhelp.auth.domain.model;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /**
  * EmailVerificationCode domain entity for CityHelp authentication system.
@@ -32,7 +33,7 @@ public class EmailVerificationCode {
         this.userId = userId;
         this.code = code;
         this.expiresAt = expiresAt;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         this.isUsed = false;
         this.attempts = 0;
     }
@@ -65,18 +66,18 @@ public class EmailVerificationCode {
     }
     
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        return LocalDateTime.now(ZoneOffset.UTC).isAfter(expiresAt);
     }
-    
+
     public boolean willExpireInMinutes(int minutes) {
-        return LocalDateTime.now().plusMinutes(minutes).isAfter(expiresAt);
+        return LocalDateTime.now(ZoneOffset.UTC).plusMinutes(minutes).isAfter(expiresAt);
     }
-    
+
     public long getRemainingMinutes() {
         if (isExpired()) {
             return 0;
         }
-        return java.time.Duration.between(LocalDateTime.now(), expiresAt).toMinutes();
+        return java.time.Duration.between(LocalDateTime.now(ZoneOffset.UTC), expiresAt).toMinutes();
     }
     
     public void markAsUsed() {

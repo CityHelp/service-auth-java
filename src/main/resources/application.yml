@@ -151,6 +151,10 @@ cityhelp:
     from: ${SMTP_FROM_EMAIL:noreply@cityhelp.com}
     from-name: ${SMTP_FROM_NAME:CityHelp}
 
+  # Password Reset Settings
+  password-reset:
+    expiration-hours: ${PASSWORD_RESET_EXPIRATION_HOURS:1}  # 1 hour (OWASP recommended)
+
   # Rate Limiting Configuration
   rate-limit:
     login-attempts: 5

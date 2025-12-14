@@ -5,6 +5,7 @@ import com.crudzaso.cityhelp.auth.domain.enums.UserStatus;
 import com.crudzaso.cityhelp.auth.domain.enums.OAuthProvider;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -51,7 +52,7 @@ public class User {
         this.status = UserStatus.PENDING_VERIFICATION;
         this.role = UserRole.USER;
         this.isVerified = false;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
     
     // Constructor for OAuth2 users (Google)
@@ -64,7 +65,7 @@ public class User {
         this.role = UserRole.USER;
         this.isVerified = true;
         this.password = null; // OAuth2 users don't have password
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
     
     // Getters and setters
@@ -146,7 +147,7 @@ public class User {
         if (lockedUntil == null) {
             return false;
         }
-        return LocalDateTime.now().isBefore(lockedUntil);
+        return LocalDateTime.now(ZoneOffset.UTC).isBefore(lockedUntil);
     }
 
     public boolean needsEmailVerification() {

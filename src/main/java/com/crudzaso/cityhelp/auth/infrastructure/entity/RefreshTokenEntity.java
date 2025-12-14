@@ -10,12 +10,12 @@ import java.time.LocalDateTime;
  * Infrastructure layer implementation of RefreshToken domain model.
  * Maps to 'refresh_tokens' table in PostgreSQL database.
  *
- * Extends AuditableEntity to automatically manage createdAt timestamp.
  * Note: RefreshTokens don't need updatedAt as they are immutable once created.
+ * Manages createdAt timestamp directly without extending AuditableEntity.
  */
 @Entity
 @Table(name = "refresh_tokens")
-public class RefreshTokenEntity extends AuditableEntity {
+public class RefreshTokenEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,6 +31,9 @@ public class RefreshTokenEntity extends AuditableEntity {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
     @Column(name = "is_revoked", nullable = false)
     private boolean isRevoked;
 
@@ -43,7 +46,7 @@ public class RefreshTokenEntity extends AuditableEntity {
         this.token = refreshToken.getToken();
         this.userId = refreshToken.getUserId();
         this.expiresAt = refreshToken.getExpiresAt();
-        this.setCreatedAt(refreshToken.getCreatedAt());
+        this.createdAt = refreshToken.getCreatedAt();
         this.isRevoked = refreshToken.isRevoked();
     }
 
@@ -59,6 +62,9 @@ public class RefreshTokenEntity extends AuditableEntity {
 
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public boolean isRevoked() { return isRevoked; }
     public void setRevoked(boolean revoked) { isRevoked = revoked; }

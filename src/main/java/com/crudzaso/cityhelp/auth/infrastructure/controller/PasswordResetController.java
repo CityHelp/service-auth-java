@@ -130,9 +130,18 @@ public class PasswordResetController {
                 .body(AuthResponse.error(e.getMessage()));
         } catch (Exception e) {
             metricsService.recordPasswordResetFailure();
+            // Log the actual exception for debugging with full stack trace
+            org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PasswordResetController.class);
+            logger.error("Unexpected error during password reset for token: " + request.getToken(), e);
+            logger.error("Exception type: " + e.getClass().getName());
+            logger.error("Exception message: " + e.getMessage());
+            if (e.getCause() != null) {
+                logger.error("Cause: " + e.getCause().getMessage());
+            }
             return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(AuthResponse.error("Error al restablecer contraseña"));
+                .body(AuthResponse.error("Error al restablecer contraseña: " +
+                    (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())));
         } finally {
             metricsService.recordPasswordResetDuration(timerSample);
         }

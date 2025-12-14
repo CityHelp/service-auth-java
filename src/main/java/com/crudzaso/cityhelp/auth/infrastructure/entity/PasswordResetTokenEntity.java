@@ -2,6 +2,7 @@ package com.crudzaso.cityhelp.auth.infrastructure.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "password_reset_tokens")
@@ -24,7 +25,7 @@ public class PasswordResetTokenEntity {
     private Boolean used = false;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now(ZoneOffset.UTC);
 
     // Constructors
     public PasswordResetTokenEntity() {}
@@ -34,7 +35,7 @@ public class PasswordResetTokenEntity {
         this.token = token;
         this.expiresAt = expiresAt;
         this.used = false;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     // Getters and Setters
@@ -87,7 +88,7 @@ public class PasswordResetTokenEntity {
     }
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        return LocalDateTime.now(ZoneOffset.UTC).isAfter(expiresAt);
     }
 
     public boolean isValid() {

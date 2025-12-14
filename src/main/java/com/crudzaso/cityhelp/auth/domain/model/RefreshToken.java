@@ -1,6 +1,7 @@
 package com.crudzaso.cityhelp.auth.domain.model;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /**
  * RefreshToken domain entity for CityHelp authentication system.
@@ -30,7 +31,7 @@ public class RefreshToken {
         this.token = token;
         this.userId = userId;
         this.expiresAt = expiresAt;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         this.isRevoked = false;
     }
     
@@ -55,22 +56,22 @@ public class RefreshToken {
     
     // Business logic methods (pure Java)
     public boolean isValid() {
-        return !isRevoked && LocalDateTime.now().isBefore(expiresAt);
+        return !isRevoked && LocalDateTime.now(ZoneOffset.UTC).isBefore(expiresAt);
     }
-    
+
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        return LocalDateTime.now(ZoneOffset.UTC).isAfter(expiresAt);
     }
-    
+
     public boolean willExpireInHours(int hours) {
-        return LocalDateTime.now().plusHours(hours).isAfter(expiresAt);
+        return LocalDateTime.now(ZoneOffset.UTC).plusHours(hours).isAfter(expiresAt);
     }
-    
+
     public long getRemainingHours() {
         if (isExpired()) {
             return 0;
         }
-        return java.time.Duration.between(LocalDateTime.now(), expiresAt).toHours();
+        return java.time.Duration.between(LocalDateTime.now(ZoneOffset.UTC), expiresAt).toHours();
     }
     
     public void revoke() {
