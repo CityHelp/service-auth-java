@@ -44,6 +44,27 @@ public class OpenApiConfig {
     @Value("${server.port:8001}")
     private String serverPort;
 
+    @Value("${app.api-docs.dev-url:http://localhost:8001}")
+    private String apiDocsDevUrl;
+
+    @Value("${app.api-docs.prod-url:http://188.245.114.222:8001}")
+    private String apiDocsProdUrl;
+
+    @Value("${app.api-docs.custom-url:}")
+    private String apiDocsCustomUrl;
+
+    @Value("${app.support-email:support@cityhelp.com}")
+    private String supportEmail;
+
+    @Value("${app.dev-email:dev@cityhelp.com}")
+    private String devEmail;
+
+    @Value("${app.github-repo:https://github.com/cityhelp/auth-service}")
+    private String githubRepo;
+
+    @Value("${app.terms-url:https://cityhelp.com/terms}")
+    private String termsUrl;
+
     /**
      * Configures the OpenAPI specification for the Auth Service.
      *
@@ -59,19 +80,31 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         final String securitySchemeName = "Bearer Authentication";
 
+        // Build list of servers dynamically based on configuration
+        List<Server> servers = new java.util.ArrayList<>();
+
+        // Add development server
+        servers.add(new Server()
+                .url(apiDocsDevUrl)
+                .description("Development server"));
+
+        // Add production server (if different from dev)
+        if (!apiDocsProdUrl.equals(apiDocsDevUrl)) {
+            servers.add(new Server()
+                    .url(apiDocsProdUrl)
+                    .description("Production server"));
+        }
+
+        // Add custom server (if provided)
+        if (apiDocsCustomUrl != null && !apiDocsCustomUrl.isBlank()) {
+            servers.add(new Server()
+                    .url(apiDocsCustomUrl)
+                    .description("Custom server"));
+        }
+
         return new OpenAPI()
                 .info(apiInfo())
-                .servers(List.of(
-                        new Server()
-                                .url("http://localhost:" + serverPort)
-                                .description("Local development server"),
-                        new Server()
-                                .url("https://api-dev.cityhelp.com")
-                                .description("Development server"),
-                        new Server()
-                                .url("https://api.cityhelp.com")
-                                .description("Production server")
-                ))
+                .servers(servers)
                 // Note: Security is applied per-endpoint using @SecurityRequirement annotation
                 // Do NOT add global security requirement - it would require auth for all endpoints
                 .components(new Components()
@@ -136,15 +169,15 @@ public class OpenApiConfig {
                         - GET /.well-known/jwks.json - Returns RSA public keys
 
                         Support:
-                        For issues or questions, contact: support@cityhelp.com
+                        For issues or questions, contact: """ + supportEmail + """
                         """)
                 .contact(new Contact()
                         .name("CityHelp Development Team")
-                        .email("dev@cityhelp.com")
-                        .url("https://github.com/cityhelp/auth-service"))
+                        .email(devEmail)
+                        .url(githubRepo))
                 .license(new License()
                         .name("MIT License")
                         .url("https://opensource.org/licenses/MIT"))
-                .termsOfService("https://cityhelp.com/terms");
+                .termsOfService(termsUrl);
     }
 }

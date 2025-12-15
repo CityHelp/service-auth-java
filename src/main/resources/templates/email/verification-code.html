@@ -104,7 +104,7 @@
                 Por favor no respondas a este correo.
             </p>
             <p>
-                ¿Necesitas ayuda? Contáctanos en <a href="mailto:support@cityhelp.com">support@cityhelp.com</a>
+                ¿Necesitas ayuda? Contáctanos en <a th:href="'mailto:' + ${supportEmail}" th:text="${supportEmail}">support@cityhelp.com</a>
             </p>
         </div>
     </div>

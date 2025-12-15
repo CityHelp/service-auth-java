@@ -42,7 +42,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
-    @Value("${app.oauth2.redirect-uri:http://localhost:8001/oauth2/redirect}")
+    @Value("${app.oauth2.redirect-uri:${app.base-url:http://localhost:8001}/oauth2/redirect}")
     private String oauth2RedirectUri;
 
     @Value("${app.jwt.refresh-expiration-in-ms:604800000}") // 7 days

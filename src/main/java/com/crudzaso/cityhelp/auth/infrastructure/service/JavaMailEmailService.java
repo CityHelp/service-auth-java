@@ -32,6 +32,12 @@ public class JavaMailEmailService implements EmailService {
     @Value("${cityhelp.email.from-name}")
     private String fromName;
 
+    @Value("${app.base-url:http://localhost:8001}")
+    private String baseUrl;
+
+    @Value("${app.support-email:support@cityhelp.com}")
+    private String supportEmail;
+
     @Override
     public void sendVerificationCode(String toEmail, String toName, String verificationCode) {
         log.info("Sending verification code to email: {}", toEmail);
@@ -41,6 +47,7 @@ public class JavaMailEmailService implements EmailService {
             context.setVariable("name", toName);
             context.setVariable("code", verificationCode);
             context.setVariable("expirationMinutes", 15);
+            context.setVariable("supportEmail", supportEmail);
 
             String htmlContent = templateEngine.process("email/verification-code", context);
 
@@ -60,6 +67,7 @@ public class JavaMailEmailService implements EmailService {
         try {
             Context context = new Context();
             context.setVariable("name", toName);
+            context.setVariable("supportEmail", supportEmail);
 
             String htmlContent = templateEngine.process("email/welcome", context);
 
@@ -80,7 +88,8 @@ public class JavaMailEmailService implements EmailService {
             Context context = new Context();
             context.setVariable("name", toName);
             context.setVariable("resetToken", resetToken);
-            context.setVariable("resetUrl", "http://localhost:8001/api/auth/reset-password?token=" + resetToken);
+            context.setVariable("resetUrl", baseUrl + "/api/auth/reset-password?token=" + resetToken);
+            context.setVariable("supportEmail", supportEmail);
 
             String htmlContent = templateEngine.process("email/password-reset", context);
 

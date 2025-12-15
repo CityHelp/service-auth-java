@@ -44,7 +44,18 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:${PORT:-8001}/actuator/health || exit 1
 
 # Run application with active profile and dynamic port
+# Optimized for small VPS (2 CPU, 3.7GB RAM)
+# -Xmx512m: Max heap 512MB (reduce if OOM)
+# -Xms256m: Initial heap 256MB
+# -XX:+UseG1GC: G1 Garbage Collector (better for small heaps)
+# -XX:MaxGCPauseMillis=200: GC pause target
+# -XX:+ParallelRefProcEnabled: Parallel reference processing
 ENTRYPOINT ["sh", "-c", "java \
+    -Xmx512m \
+    -Xms256m \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
+    -XX:+ParallelRefProcEnabled \
     -Djava.security.egd=file:/dev/./urandom \
     -Dspring.profiles.active=${SPRING_PROFILE:prod} \
     -Dserver.port=${PORT:-8001} \

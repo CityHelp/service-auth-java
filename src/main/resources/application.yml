@@ -109,8 +109,26 @@ spring:
     suffix: .html
     mode: HTML
 
-# Application-wide JWT Configuration
+# Application-wide Configuration
 app:
+  # Base URL for application (used in emails, redirects, etc)
+  # Set this to your VPS URL in production: http://188.245.114.222:8001
+  # Development: http://localhost:8001
+  base-url: ${APP_BASE_URL:http://localhost:8001}
+
+  # API Documentation Server URLs (Swagger/OpenAPI)
+  # Used in OpenApiConfig for Swagger UI server endpoints
+  api-docs:
+    dev-url: ${API_DOCS_DEV_URL:http://localhost:${server.port}}
+    prod-url: ${API_DOCS_PROD_URL:http://188.245.114.222:${server.port}}
+    custom-url: ${API_DOCS_CUSTOM_URL:}
+
+  # Support Email Configuration
+  support-email: ${SUPPORT_EMAIL:support@cityhelp.com}
+  dev-email: ${DEV_EMAIL:dev@cityhelp.com}
+  github-repo: ${GITHUB_REPO:https://github.com/cityhelp/auth-service}
+  terms-url: ${TERMS_URL:https://cityhelp.com/terms}
+
   jwt:
     expiration-in-ms: 86400000    # 24 hours
     refresh-expiration-in-ms: 604800000  # 7 days
@@ -130,9 +148,9 @@ app:
   oauth2:
     # Redirect URI after successful OAuth2 authentication
     # This is where users will be redirected with their tokens
-    # Production: https://service-auth-java.onrender.com/oauth2/redirect
+    # Production (VPS): http://188.245.114.222:8001/oauth2/redirect
     # Development: http://localhost:8001/oauth2/redirect
-    redirect-uri: ${OAUTH2_REDIRECT_URI:https://service-auth-java.onrender.com/oauth2/redirect}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8001/oauth2/redirect}
 
 # Custom CityHelp Properties (Legacy - migrating to app.jwt)
 cityhelp:
