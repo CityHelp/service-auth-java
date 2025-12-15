@@ -1,0 +1,125 @@
+# CityHelp Auth Service - Docker Compose for Small VPS
+# Usage: docker-compose -f docker-compose.vps.yml up -d
+#
+# This configuration is optimized for:
+# - VPS with 2 CPUs and 3.7GB RAM
+# - Connection to external PostgreSQL DB (Render)
+# - Connection to external Redis (Redis Labs)
+#
+# Applied resource limits:
+# - CPU: 0.5 (50% of 1 CPU)
+# - Memory: 600MB max, 256MB reserved
+
+version: '3.8'
+
+services:
+  # Auth Service - Optimized for small VPS
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cityhelp-auth-service
+    restart: unless-stopped
+
+    # Resource limits (CRITICAL for small VPS)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'        # Max 50% of 1 CPU
+          memory: 600M       # Max 600MB
+        reservations:
+          cpus: '0.25'       # Min 25% of 1 CPU
+          memory: 256M       # Min 256MB
+
+    environment:
+      # Spring Profile - Production
+      SPRING_PROFILE: prod
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8001
+
+      # PostgreSQL Database Configuration (Render)
+      DB_URL: ${DB_URL}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis Configuration (Redis Labs)
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_RSA_PRIVATE_KEY: ${JWT_RSA_PRIVATE_KEY:-}
+      JWT_RSA_PUBLIC_KEY: ${JWT_RSA_PUBLIC_KEY:-}
+      JWT_KEY_ID: ${JWT_KEY_ID:-cityhelp-key-1}
+
+      # OAuth2 Google Configuration
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      OAUTH2_GOOGLE_REDIRECT_URI: ${OAUTH2_GOOGLE_REDIRECT_URI}
+
+      # Email Configuration (SMTP Gmail)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-CityHelp Team}
+
+      # Application URLs
+      APP_BASE_URL: ${APP_BASE_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+
+      # API Documentation URLs (Swagger/OpenAPI)
+      API_DOCS_DEV_URL: ${API_DOCS_DEV_URL}
+      API_DOCS_PROD_URL: ${API_DOCS_PROD_URL}
+      API_DOCS_CUSTOM_URL: ${API_DOCS_CUSTOM_URL:-}
+
+      # Contact Information
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@cityhelp.com}
+      DEV_EMAIL: ${DEV_EMAIL:-dev@cityhelp.com}
+      GITHUB_REPO: ${GITHUB_REPO:-https://github.com/cityhelp/auth-service}
+      TERMS_URL: ${TERMS_URL:-https://cityhelp.com/terms}
+
+      # OAuth2 Configuration
+      OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI}
+
+      # CORS Configuration
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+
+      # Environment
+      ENVIRONMENT: production
+
+    ports:
+      - "8001:8001"
+
+    networks:
+      - cityhelp-network
+
+    volumes:
+      - ./logs:/app/logs
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/actuator/health"]
+      interval: 60s        # Aumentado de 30s a 60s para VPS pequeña
+      timeout: 5s
+      retries: 2
+      start_period: 45s
+
+    # Logging - Reducido para VPS pequeña
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"     # Reducido de 10m
+        max-file: "2"      # Reducido de 3
+
+    # Política de reinicio
+    restart: unless-stopped
+
+networks:
+  cityhelp-network:
+    driver: bridge
