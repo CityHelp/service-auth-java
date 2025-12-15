@@ -6,9 +6,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
@@ -43,13 +45,24 @@ public class RsaKeyProvider {
     @PostConstruct
     public void init() {
         try {
-            if (privateKeyPem.isEmpty() || publicKeyPem.isEmpty()) {
+            boolean privateConfigured = privateKeyPem != null && !privateKeyPem.isBlank();
+            boolean publicConfigured = publicKeyPem != null && !publicKeyPem.isBlank();
+
+            if (privateConfigured != publicConfigured) {
+                throw new IllegalStateException("RSA key pair configuration is incomplete. Provide both private and public keys or none.");
+            }
+
+            if (!privateConfigured) {
                 logger.warn("RSA keys not configured. Generating new key pair for development. " +
                         "DO NOT use this in production - configure app.jwt.rsa.private-key and app.jwt.rsa.public-key");
                 generateKeyPair();
             } else {
                 loadKeysFromConfiguration();
             }
+
+            validateKeyPair();
+            selfTestJwtSigning();
+
             logger.info("RSA key provider initialized successfully with key ID: {}", keyId);
         } catch (Exception e) {
             logger.error("Failed to initialize RSA key provider", e);
@@ -83,20 +96,20 @@ public class RsaKeyProvider {
     private void loadKeysFromConfiguration() throws Exception {
         logger.info("Loading RSA keys from configuration...");
 
-        // Remove PEM headers/footers and whitespace
-        String privateKeyContent = cleanPemKey(privateKeyPem);
-        String publicKeyContent = cleanPemKey(publicKeyPem);
+        String normalizedPrivateKey = normalizeKey(privateKeyPem);
+        String normalizedPublicKey = normalizeKey(publicKeyPem);
 
-        // Decode Base64
-        byte[] privateKeyBytes = Base64.getDecoder().decode(privateKeyContent);
-        byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyContent);
+        if (normalizedPrivateKey.isBlank() || normalizedPublicKey.isBlank()) {
+            throw new IllegalArgumentException("RSA key configuration is blank after normalization");
+        }
 
-        // Generate key objects
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 
+        byte[] privateKeyBytes = decodePrivateKey(normalizedPrivateKey);
         PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
         this.privateKey = (RSAPrivateKey) keyFactory.generatePrivate(privateKeySpec);
 
+        byte[] publicKeyBytes = decodePublicKey(normalizedPublicKey);
         X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
         this.publicKey = (RSAPublicKey) keyFactory.generatePublic(publicKeySpec);
 
@@ -110,9 +123,110 @@ public class RsaKeyProvider {
         return pemKey
                 .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
+                .replace("-----BEGIN RSA PRIVATE KEY-----", "")
+                .replace("-----END RSA PRIVATE KEY-----", "")
                 .replace("-----BEGIN PUBLIC KEY-----", "")
                 .replace("-----END PUBLIC KEY-----", "")
+                .replace("-----BEGIN RSA PUBLIC KEY-----", "")
+                .replace("-----END RSA PUBLIC KEY-----", "")
                 .replaceAll("\\s", "");
+    }
+
+    private String normalizeKey(String key) {
+        if (key == null) {
+            return "";
+        }
+        return key
+                .replace("\\n", "\n")
+                .replace("\r", "")
+                .trim();
+    }
+
+    private byte[] decodePrivateKey(String pemFormattedKey) {
+        try {
+            String cleaned = cleanPemKey(pemFormattedKey);
+            byte[] keyBytes = Base64.getMimeDecoder().decode(cleaned);
+
+            try {
+                KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
+                return keyBytes;
+            } catch (InvalidKeySpecException pkcs8Ex) {
+                byte[] converted = convertPkcs1ToPkcs8(keyBytes);
+                try {
+                    KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(converted));
+                    return converted;
+                } catch (InvalidKeySpecException inner) {
+                    pkcs8Ex.addSuppressed(inner);
+                    throw pkcs8Ex;
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid RSA private key format", e);
+        }
+    }
+
+    private byte[] decodePublicKey(String pemFormattedKey) {
+        try {
+            String cleaned = cleanPemKey(pemFormattedKey);
+            return Base64.getMimeDecoder().decode(cleaned);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid RSA public key format", e);
+        }
+    }
+
+    private byte[] convertPkcs1ToPkcs8(byte[] pkcs1Bytes) {
+        // Wrap PKCS#1 bytes into PKCS#8 structure (RFC5208)
+        int pkcs1Length = pkcs1Bytes.length;
+        int totalLength = pkcs1Length + 22;
+
+        byte[] pkcs8Header = new byte[] {
+                0x30, (byte) 0x82, (byte) ((totalLength >> 8) & 0xff), (byte) (totalLength & 0xff),
+                0x2, 0x1, 0x0,
+                0x30, 0x0d,
+                0x6, 0x9,
+                0x2a, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xf7, 0x0d, 0x1, 0x1, 0x1,
+                0x5, 0x0,
+                0x4, (byte) 0x82, (byte) ((pkcs1Length >> 8) & 0xff), (byte) (pkcs1Length & 0xff)
+        };
+
+        byte[] pkcs8Bytes = new byte[pkcs8Header.length + pkcs1Length];
+        System.arraycopy(pkcs8Header, 0, pkcs8Bytes, 0, pkcs8Header.length);
+        System.arraycopy(pkcs1Bytes, 0, pkcs8Bytes, pkcs8Header.length, pkcs1Length);
+        return pkcs8Bytes;
+    }
+
+    private void validateKeyPair() throws Exception {
+        if (privateKey == null || publicKey == null) {
+            throw new IllegalStateException("RSA key pair not initialized");
+        }
+
+        byte[] testPayload = "cityhelp-rsa-self-test".getBytes(StandardCharsets.UTF_8);
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(privateKey);
+        signature.update(testPayload);
+        byte[] signed = signature.sign();
+
+        signature.initVerify(publicKey);
+        signature.update(testPayload);
+        if (!signature.verify(signed)) {
+            throw new IllegalStateException("RSA key pair validation failed: public key cannot verify signature from private key");
+        }
+    }
+
+    private void selfTestJwtSigning() {
+        try {
+            String jwt = io.jsonwebtoken.Jwts.builder()
+                    .subject("health-check")
+                    .signWith(privateKey, io.jsonwebtoken.Jwts.SIG.RS256)
+                    .compact();
+
+            io.jsonwebtoken.Jwts.parser()
+                    .verifyWith(publicKey)
+                    .build()
+                    .parseSignedClaims(jwt);
+        } catch (Exception e) {
+            throw new IllegalStateException("JWT self-test failed. Check RSA keys and algorithm support.", e);
+        }
     }
 
     /**

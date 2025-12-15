@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
@@ -42,11 +43,18 @@ public class JwtTokenProvider {
         return rsaKeyProvider.getPublicKey();
     }
 
+    private void ensureKeysPresent() {
+        if (rsaKeyProvider.getPrivateKey() == null || rsaKeyProvider.getPublicKey() == null) {
+            throw new IllegalStateException("RSA keys are not initialized. Check RsaKeyProvider configuration.");
+        }
+    }
+
     /**
      * Generate JWT access token for authenticated user.
      */
     public String generateAccessToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
+        ensureKeysPresent();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
@@ -71,6 +79,10 @@ public class JwtTokenProvider {
      * @return JWT access token string
      */
     public String generateToken(Long userId, String email, String role) {
+        ensureKeysPresent();
+        Objects.requireNonNull(userId, "userId is required to build JWT");
+        Objects.requireNonNull(email, "email/subject is required to build JWT");
+        Objects.requireNonNull(role, "role is required to build JWT");
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
@@ -81,7 +93,8 @@ public class JwtTokenProvider {
                 .subject(email)
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .claim("userId", userId)
+                .claim("user_id", userId)
+                .claim("userId", userId) // legacy compatibility
                 .claim("role", role)
                 .claim("type", "access")
                 .signWith(getSigningKey(), Jwts.SIG.RS256)
@@ -93,6 +106,7 @@ public class JwtTokenProvider {
      */
     public String generateRefreshToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
+        ensureKeysPresent();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshExpirationInMs);
 
@@ -126,6 +140,7 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
+            ensureKeysPresent();
             Jwts.parser()
                 .verifyWith(getVerificationKey())
                 .build()
