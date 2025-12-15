@@ -1,0 +1,136 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [main, develop, dev, feature/**]
+  pull_request:
+    branches: [main, develop, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_VERSION: '3.9.9'
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: cityhelp_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Verify project structure
+        run: |
+          echo "Checking pom.xml..."
+          test -f pom.xml || (echo "ERROR: pom.xml not found"; exit 1)
+          echo "pom.xml found"
+
+          echo "Checking Dockerfile..."
+          test -f Dockerfile || (echo "ERROR: Dockerfile not found"; exit 1)
+          echo "Dockerfile found"
+
+      - name: Build with Maven
+        run: |
+          echo "Building CityHelp Auth Service..."
+          mvn clean package -DskipTests \
+            -Drevision=${{ github.sha }} \
+            -Dchangelist= \
+            -Dmaven.test.skip=false
+
+      - name: Run Tests
+        env:
+          # Local test database (always used for CI)
+          SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cityhelp_test
+          SPRING_DATASOURCE_USERNAME: test_user
+          SPRING_DATASOURCE_PASSWORD: test_password
+          SPRING_REDIS_HOST: redis
+          SPRING_REDIS_PORT: 6379
+          # External database credentials (optional, from GitHub Secrets)
+          EXTERNAL_DB_HOST: ${{ secrets.DB_HOST }}
+          EXTERNAL_DB_PORT: ${{ secrets.DB_PORT }}
+          EXTERNAL_DB_NAME: ${{ secrets.DB_NAME }}
+          EXTERNAL_DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          EXTERNAL_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          echo "Running unit and integration tests..."
+          mvn test -Dmaven.test.failure.ignore=false \
+            -Dspring.datasource.url=${{ env.SPRING_DATASOURCE_URL }} \
+            -Dspring.datasource.username=${{ env.SPRING_DATASOURCE_USERNAME }} \
+            -Dspring.datasource.password=${{ env.SPRING_DATASOURCE_PASSWORD }} \
+            -Dspring.redis.host=${{ env.SPRING_REDIS_HOST }} \
+            -Dspring.redis.port=${{ env.SPRING_REDIS_PORT }}
+
+      - name: Generate Test Report
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -d "target/surefire-reports" ]; then
+            TOTAL_TESTS=$(find target/surefire-reports -name "*.xml" -exec grep -h "tests=" {} \; | awk -F'"' '{sum+=$2} END {print sum}')
+            echo "Total Tests Executed: **$TOTAL_TESTS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No test reports found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ github.run_number }}
+          path: target/surefire-reports/
+          retention-days: 30
+
+      - name: Upload Coverage Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports-${{ github.run_number }}
+          path: target/site/jacoco/
+          retention-days: 30
+
+      - name: Build Success
+        if: success()
+        run: |
+          echo "CI Pipeline Completed Successfully"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"

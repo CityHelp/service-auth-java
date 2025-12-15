@@ -1,0 +1,265 @@
+# CityHelp Auth Service Configuration
+# Spring Boot 3.5.8 - Authorization Server
+
+server:
+  port: ${PORT:8001}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: cityhelp-auth-service
+
+  # PostgreSQL Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cityhelp_auth}
+    username: ${DB_USERNAME:auth_service_user}
+    password: ${DB_PASSWORD:secure_password_change_in_production}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: CityHelpAuthHikariCP
+
+  # JPA & Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: none  # Flyway maneja las migraciones
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        default_schema: public
+
+  # Flyway Database Migrations
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
+    baseline-version: 0
+    schemas: public
+
+  # Spring Security OAuth2 Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+            scope:
+              - email
+              - profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
+            authorization-grant-type: authorization_code
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: email
+
+  # Redis Configuration (Rate Limiting & Caching)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      connect-timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: 5000ms
+        shutdown-timeout: 100ms
+
+  # Mail Configuration (SMTP)
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:noreply@cityhelp.com}
+    password: ${SMTP_PASSWORD:your-smtp-password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    default-encoding: UTF-8
+
+  # Thymeleaf Configuration (Email Templates)
+  thymeleaf:
+    cache: true
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+
+# Application-wide JWT Configuration
+app:
+  jwt:
+    expiration-in-ms: 86400000    # 24 hours
+    refresh-expiration-in-ms: 604800000  # 7 days
+    rsa:
+      # RSA Private Key (PEM format, base64 encoded)
+      # Generate with: openssl genrsa -out private_key.pem 2048
+      # Leave empty to auto-generate (ONLY for development)
+      private-key: ${JWT_RSA_PRIVATE_KEY:}
+      # RSA Public Key (PEM format, base64 encoded)
+      # Extract from private key: openssl rsa -in private_key.pem -pubout -out public_key.pem
+      # Leave empty to auto-generate (ONLY for development)
+      public-key: ${JWT_RSA_PUBLIC_KEY:}
+      # Key ID for JWKS (should match JWT header 'kid')
+      key-id: ${JWT_KEY_ID:cityhelp-key-1}
+
+  # OAuth2 Configuration
+  oauth2:
+    # Redirect URI after successful OAuth2 authentication
+    # This is where users will be redirected with their tokens
+    # Production: https://service-auth-java.onrender.com/oauth2/redirect
+    # Development: http://localhost:8001/oauth2/redirect
+    redirect-uri: ${OAUTH2_REDIRECT_URI:https://service-auth-java.onrender.com/oauth2/redirect}
+
+# Custom CityHelp Properties (Legacy - migrating to app.jwt)
+cityhelp:
+  # JWT Configuration
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-use-env-var}
+    access-token-expiration: 86400000   # 24 hours in milliseconds
+    refresh-token-expiration: 604800000 # 7 days in milliseconds
+    issuer: cityhelp-auth-service
+    audience: cityhelp-ecosystem
+
+  # Email Verification Settings
+  email:
+    verification:
+      expiration: 900000  # 15 minutes in milliseconds
+      max-attempts: 3
+      code-length: 6
+    from: ${SMTP_FROM_EMAIL:noreply@cityhelp.com}
+    from-name: ${SMTP_FROM_NAME:CityHelp}
+
+  # Password Reset Settings
+  password-reset:
+    expiration-hours: ${PASSWORD_RESET_EXPIRATION_HOURS:1}  # 1 hour (OWASP recommended)
+
+  # Rate Limiting Configuration
+  rate-limit:
+    login-attempts: 5
+    window-seconds: 300  # 5 minutes
+    verification-attempts: 3
+    verification-window: 300  # 5 minutes
+
+  # Password Policy
+  password:
+    min-length: 8
+    require-uppercase: true
+    require-lowercase: true
+    require-digit: true
+    require-special-char: true
+
+# Logging Configuration
+logging:
+  level:
+    root: WARN
+    com.crudzaso.cityhelp.auth: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.springframework.data: WARN
+    org.hibernate.SQL: WARN
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/cityhelp-auth.log
+    max-size: 10MB
+    max-history: 30
+
+# Spring Boot Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: false
+    mail:
+      enabled: false
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 1m
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+    # Distribution settings for histograms and percentiles
+    distribution:
+      percentiles-histogram:
+        auth.login.duration: true
+        auth.email.verification.duration: true
+        auth.password.reset.duration: true
+        auth.token.refresh.duration: true
+        auth.registration.duration: true
+      # SLO (Service Level Objectives) for timers in milliseconds
+      slo:
+        auth.login.duration: 100,200,500,1000
+        auth.email.verification.duration: 100,200,500,1000
+        auth.password.reset.duration: 100,200,500,1000
+        auth.token.refresh.duration: 50,100,200,500
+        auth.registration.duration: 100,200,500,1000
+    # Enable detailed JVM metrics
+    enable:
+      jvm: true
+      process: true
+      system: true
+      logback: true
+
+# SpringDoc OpenAPI Configuration (Swagger)
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    # Configure Swagger UI to use local API docs endpoint
+    url: /v3/api-docs
+    urls:
+      - name: CityHelp Auth Service
+        url: /v3/api-docs
+  show-actuator: false
+  info:
+    title: CityHelp Auth Service API
+    description: Authorization Server - Central authentication and JWT issuer for CityHelp ecosystem
+    version: 1.0.0
+    contact:
+      name: CityHelp Team
+      email: dev@cityhelp.com

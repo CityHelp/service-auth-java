@@ -1,0 +1,38 @@
+# CityHelp Auth Service - Production Docker Compose Configuration
+# Uses cloud services: Render PostgreSQL + Redis Labs
+# Single production-ready configuration
+
+services:
+  # Auth Service (connects to cloud DB and Redis)
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cityhelp-auth-service
+    restart: unless-stopped
+
+    env_file:
+      - ./service-auth-java.env
+
+    ports:
+      - "8001:8001"
+    networks:
+      - cityhelp-network
+    volumes:
+      - ./logs:/app/logs
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cityhelp-network:
+    driver: bridge

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: cityhelp-auth-service
+    runtime: docker
+    region: oregon
+    plan: standard
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    healthCheckTimeout: 10
+    autoDeploy: true
+    preDeployCommand: echo "Deploying CityHelp Auth Service..."
+
+    # Environment variables are already configured in Render dashboard
+    # This file documents the service configuration
+    # Update variables directly in Render dashboard or via CLI
