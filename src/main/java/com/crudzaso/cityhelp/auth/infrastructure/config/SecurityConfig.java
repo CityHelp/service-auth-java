@@ -64,6 +64,9 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        // CORS TEMPORARILY DISABLED FOR TESTING
+        // To re-enable: uncomment the code below
+        /*
         CorsConfiguration configuration = new CorsConfiguration();
         // Allow CORS for development (localhost) and production (HTTPS)
         configuration.setAllowedOriginPatterns(List.of(
@@ -79,6 +82,10 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+        */
+
+        // Return empty source while disabled
+        return new UrlBasedCorsConfigurationSource();
     }
 
     @Bean

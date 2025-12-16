@@ -30,11 +30,15 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        // CORS TEMPORARILY DISABLED FOR TESTING
+        // To re-enable: uncomment the code below
+        /*
         registry.addMapping("/**")
                 .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*", "https://*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);
+        */
     }
 }
