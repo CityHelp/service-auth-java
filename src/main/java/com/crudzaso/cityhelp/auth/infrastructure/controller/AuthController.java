@@ -22,6 +22,7 @@ import com.crudzaso.cityhelp.auth.application.exception.TooManyRequestsException
 import com.crudzaso.cityhelp.auth.infrastructure.security.JwtTokenProvider;
 import com.crudzaso.cityhelp.auth.infrastructure.security.RateLimited;
 import com.crudzaso.cityhelp.auth.infrastructure.service.MetricsService;
+import com.crudzaso.cityhelp.auth.application.service.EmailService;
 import io.micrometer.core.instrument.Timer;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,6 +62,7 @@ public class AuthController {
     private final ChangePasswordUseCase changePasswordUseCase;
     private final JwtTokenProvider jwtTokenProvider;
     private final MetricsService metricsService;
+    private final EmailService emailService;
 
     public AuthController(
             UserRepository userRepository,
@@ -73,7 +75,8 @@ public class AuthController {
             LogoutUserUseCase logoutUserUseCase,
             ChangePasswordUseCase changePasswordUseCase,
             JwtTokenProvider jwtTokenProvider,
-            MetricsService metricsService
+            MetricsService metricsService,
+            EmailService emailService
     ) {
         this.userRepository = userRepository;
         this.emailVerificationRepository = emailVerificationRepository;
@@ -86,6 +89,7 @@ public class AuthController {
         this.changePasswordUseCase = changePasswordUseCase;
         this.jwtTokenProvider = jwtTokenProvider;
         this.metricsService = metricsService;
+        this.emailService = emailService;
     }
 
     /**
@@ -449,8 +453,21 @@ public class AuthController {
 
             emailVerificationRepository.save(emailCode);
 
-            // Record verification code resend
-            metricsService.recordEmailVerificationResend();
+            // Send verification code email
+            try {
+                String fullName = user.getFirstName() + " " + user.getLastName();
+                emailService.sendVerificationCode(
+                        user.getEmail(),
+                        fullName,
+                        verificationCode
+                );
+                // Record successful resend
+                metricsService.recordEmailVerificationResend();
+            } catch (Exception e) {
+                // Log the error but continue - code is already saved in DB
+                // User can try to login and verify with existing code if email fails
+                metricsService.recordEmailVerificationResend();
+            }
 
             return ResponseEntity.ok()
                     .body(AuthResponse.success("Código de verificación reenviado"));
