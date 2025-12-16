@@ -466,6 +466,9 @@ public class AuthController {
             } catch (Exception e) {
                 // Log the error but continue - code is already saved in DB
                 // User can try to login and verify with existing code if email fails
+                java.util.logging.Logger.getLogger(AuthController.class.getName())
+                        .log(java.util.logging.Level.SEVERE,
+                            "Failed to send verification email to: " + user.getEmail(), e);
                 metricsService.recordEmailVerificationResend();
             }
 
